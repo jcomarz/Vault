@@ -19,6 +19,7 @@
     "params": {
       "title": "title",
       "text": "text",
+      "url": "url",
       "files": [{"name": "media", "accept": ["image/*", "video/*", ".mp4", ".mkv", ".webm", ".mov", ".3gp", ".jpg", ".png"]}]
     }
   }
