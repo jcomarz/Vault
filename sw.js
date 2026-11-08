@@ -1,6 +1,6 @@
 // App shell cache + Android share target. Shared videos are held in browser
 // storage (never a gallery folder) until the vault is unlocked and you save them.
-const CACHE='wg-v1';
+const CACHE='wg-v2';
 const SHELL=['./','./index.html','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).catch(()=>{}))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(n=>n.startsWith('wg-v')&&n!==CACHE).map(n=>caches.delete(n)))).then(()=>self.clients.claim()))});
@@ -10,10 +10,10 @@ self.addEventListener('fetch',e=>{
     e.respondWith((async()=>{
       try{
         const fd=await e.request.formData();
-        const files=fd.getAll('video').filter(f=>f&&f.size);
+        const files=fd.getAll('media').filter(f=>f&&f.size);
         const c=await caches.open('wg-share');const stamp=Date.now();
         for(let i=0;i<files.length;i++){const f=files[i];
-          await c.put('in-'+stamp+'-'+i,new Response(f,{headers:{'Content-Type':f.type||'video/mp4','X-Name':encodeURIComponent(f.name||'')}}));}
+          await c.put('in-'+stamp+'-'+i,new Response(f,{headers:{'Content-Type':f.type||'application/octet-stream','X-Name':encodeURIComponent(f.name||'')}}));}
       }catch(err){}
       return Response.redirect('./index.html?shared=1',303);
     })());

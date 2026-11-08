@@ -19,7 +19,7 @@
     "params": {
       "title": "title",
       "text": "text",
-      "files": [{"name": "video", "accept": ["video/*", ".mp4", ".mkv", ".webm", ".mov", ".3gp"]}]
+      "files": [{"name": "media", "accept": ["image/*", "video/*", ".mp4", ".mkv", ".webm", ".mov", ".3gp", ".jpg", ".png"]}]
     }
   }
 }

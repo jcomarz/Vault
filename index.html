@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta name="theme-color" content="#ffffff">
+<meta name="theme-color" content="#121213">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex">
 <link rel="manifest" href="manifest.json">
@@ -13,70 +13,80 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overscroll-behavior:none}
-body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;-webkit-tap-highlight-color:transparent;background:#fff;color:#111}
+body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;-webkit-tap-highlight-color:transparent;background:#121213;color:#fff}
 button{font-family:inherit;cursor:pointer;color:inherit;background:none;border:none}
-input{font-family:inherit}
+input,textarea,select{font-family:inherit}
 .hidden{display:none!important}
-body.veil #vault,body.veil #player,body.veil #puzzle{filter:blur(30px)}
+body.veil #vault,body.veil .panel,body.veil #player,body.veil #puzzle,body.veil #viewer{filter:blur(30px)}
 
-/* ═════════ DECOY (word game) ═════════ */
-#decoy{--bg:#fff;--fg:#111;--line:#d3d6da;--key:#d3d6da;--keyfg:#111;--tileb:#d3d6da;--tilef:#878a8c;
-  --ok:#6aaa64;--mid:#c9b458;--no:#787c7e;
+/* ═════════ DECOY ═════════ */
+#decoy{--bg:#121213;--fg:#fff;--line:#3a3a3c;--empty:#3a3a3c;--filled:#565758;--key:#818384;--keyfg:#fff;
+  --ok:#538d4e;--mid:#b59f3b;--no:#3a3a3c;--icon:#fff;--modal:#121213;
   position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg);color:var(--fg);
   padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
-#decoy.dark{--bg:#121213;--fg:#f8f8f8;--line:#3a3a3c;--key:#818384;--keyfg:#fff;--tileb:#3a3a3c;--tilef:#565758;--no:#3a3a3c;--ok:#538d4e;--mid:#b59f3b}
-.dh{display:flex;align-items:center;justify-content:space-between;height:52px;padding:0 12px;border-bottom:1px solid var(--line);max-width:500px;width:100%;margin:0 auto}
-.dh h1{font-weight:700;font-size:30px;letter-spacing:.06em;text-align:center;flex:1;font-family:'Helvetica Neue',Arial,sans-serif}
-.dh .ic{width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--no)}
-#decoy.dark .dh .ic{color:#d7dadc}
-.dh-r{display:flex}
+#decoy.light{--bg:#fff;--fg:#000;--line:#d3d6da;--empty:#d3d6da;--filled:#878a8c;--key:#d3d6da;--keyfg:#1a1a1b;--ok:#6aaa64;--mid:#c9b458;--no:#787c7e;--icon:#000;--modal:#fff}
+.dh{display:flex;align-items:center;height:56px;padding:0 10px 0 6px;border-bottom:1px solid var(--line);flex-shrink:0;gap:2px}
+.dh .sp{flex:1}
+.dh .ic{width:42px;height:42px;display:flex;align-items:center;justify-content:center;color:var(--icon);border-radius:50%}
+.dh .ic:active{background:rgba(127,127,127,.2)}
 .ic svg{width:26px;height:26px;fill:currentColor}
+.dpill{margin-left:6px;border:1px solid var(--icon);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:700;color:var(--icon);white-space:nowrap}
 .dm{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:0}
-#board{display:grid;grid-template-rows:repeat(6,1fr);gap:5px;padding:10px;width:min(350px,88vw);aspect-ratio:5/6;max-height:100%}
-.row{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+#board{display:grid;grid-template-rows:repeat(6,1fr);gap:6px;width:min(330px,82vw);aspect-ratio:5/6;max-height:100%;padding:4px}
+.row{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .row.shake{animation:shake .4s}
 @keyframes shake{20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
-.tile{display:flex;align-items:center;justify-content:center;border:2px solid var(--tileb);font-size:2rem;font-weight:700;text-transform:uppercase;user-select:none;line-height:1}
-.tile.filled{border-color:var(--tilef);animation:pop .1s}
+.tile{display:flex;align-items:center;justify-content:center;border:2px solid var(--empty);font-size:clamp(1.6rem,8vw,2.2rem);font-weight:700;text-transform:uppercase;user-select:none;line-height:1;color:var(--fg)}
+.tile.filled{border-color:var(--filled);animation:pop .1s}
 @keyframes pop{50%{transform:scale(1.1)}}
 .tile.correct,.tile.present,.tile.absent{color:#fff;border-color:transparent}
 .tile.correct{background:var(--ok)}.tile.present{background:var(--mid)}.tile.absent{background:var(--no)}
+#decoy.light .tile.absent{background:#787c7e}
 .tile.flip{animation:flip .5s ease}
 @keyframes flip{0%{transform:rotateX(0)}50%{transform:rotateX(-90deg)}100%{transform:rotateX(0)}}
-#kbd{padding:0 8px 8px;max-width:500px;width:100%;margin:0 auto;user-select:none}
+#kbd{padding:0 8px 10px;max-width:500px;width:100%;margin:0 auto;user-select:none;flex-shrink:0}
 .krow{display:flex;gap:6px;margin-bottom:8px;touch-action:manipulation}
 .krow.mid::before,.krow.mid::after{content:'';flex:.5}
 .key{flex:1;height:58px;border-radius:4px;background:var(--key);color:var(--keyfg);font-weight:700;font-size:13px;text-transform:uppercase;display:flex;align-items:center;justify-content:center}
 .key.wide{flex:1.5;font-size:12px}
 .key svg{width:24px;height:24px;fill:currentColor}
-.key.correct{background:var(--ok);color:#fff}.key.present{background:var(--mid);color:#fff}.key.absent{background:var(--no);color:#fff}
-#dToast{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:50;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
-.dt{background:#121213;color:#fff;font-weight:700;font-size:14px;padding:13px 16px;border-radius:4px;transition:opacity .3s}
-#decoy.dark .dt{background:#f8f8f8;color:#121213}
-.dmod-bg{position:fixed;inset:0;background:rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;z-index:60;padding:16px}
-#decoy.dark .dmod-bg{background:rgba(0,0,0,.5)}
-.dmod{background:var(--bg);color:var(--fg);border-radius:8px;box-shadow:0 4px 23px rgba(0,0,0,.2);width:100%;max-width:500px;max-height:90vh;overflow:auto;padding:22px;position:relative}
-.dmod h2{font-size:20px;margin-bottom:10px}
+.key.correct{background:var(--ok);color:#fff}.key.present{background:var(--mid);color:#fff}.key.absent{background:#3a3a3c;color:#fff}
+#decoy.light .key.absent{background:#787c7e}
+#dDone{display:flex;flex-direction:column;gap:16px;align-items:center;padding:10px 20px 40px;flex-shrink:0}
+.dbtn{width:min(330px,62vw);border:1px solid var(--fg);border-radius:999px;padding:15px;font-size:19px;font-weight:600;color:var(--fg)}
+.dbtn:active{background:rgba(127,127,127,.2)}
+#dToast{position:fixed;top:76px;left:50%;transform:translateX(-50%);z-index:90;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
+.dt{background:#f8f8f8;color:#121213;font-weight:700;font-size:14px;padding:13px 16px;border-radius:4px;transition:opacity .3s;white-space:nowrap}
+#decoy.light .dt{background:#121213;color:#fff}
+.dmod-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:60;padding:16px}
+#decoy.light .dmod-bg{background:rgba(255,255,255,.5)}
+.dmod{background:var(--modal);color:var(--fg);border-radius:8px;box-shadow:0 4px 23px rgba(0,0,0,.4);width:100%;max-width:500px;max-height:88vh;overflow:auto;padding:24px 20px;position:relative;border:1px solid var(--line)}
+.dmod h2{font-size:18px;margin-bottom:12px;text-transform:uppercase;letter-spacing:.04em}
 .dmod p,.dmod li{font-size:15px;line-height:1.5;margin-bottom:8px}
 .dmod ul{padding-left:20px}
 .dmod .x{position:absolute;top:10px;right:14px;font-size:22px}
-.st-nums{display:flex;justify-content:space-around;text-align:center;margin:10px 0 18px}
+.st-nums{display:flex;justify-content:space-around;text-align:center;margin:6px 0 18px}
 .st-nums b{display:block;font-size:34px;font-weight:400}.st-nums span{font-size:12px}
 .dist{display:flex;align-items:center;gap:6px;margin:4px 0;font-size:13px}
-.dist .bar{background:var(--no);color:#fff;padding:2px 8px;text-align:right;font-weight:700;min-width:22px}
+.dist .bar{background:#3a3a3c;color:#fff;padding:2px 8px;text-align:right;font-weight:700;min-width:22px}
 .dist .bar.hl{background:var(--ok)}
-.set-row{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--line);font-size:17px}
-.set-row small{display:block;font-size:12px;color:var(--no)}
-.sw{width:32px;height:20px;border-radius:999px;background:var(--no);position:relative;transition:.2s}
+.set-row{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--line);font-size:17px;gap:10px}
+.set-row small{display:block;font-size:12px;color:#818384}
+.sw{width:32px;height:20px;border-radius:999px;background:#565758;position:relative;transition:.2s;flex-shrink:0}
 .sw::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.2s}
 .sw.on{background:var(--ok)}.sw.on::after{left:14px}
-
-/* code entry: looks like a game toast */
-#codeBg{position:fixed;inset:0;z-index:70;display:flex;align-items:flex-start;justify-content:center;padding-top:110px;background:transparent}
-#codeBox{background:#121213;border-radius:6px;padding:8px;display:flex;gap:6px;box-shadow:0 4px 20px rgba(0,0,0,.25)}
+.arch{display:flex;justify-content:space-between;width:100%;padding:13px 4px;border-bottom:1px solid var(--line);font-size:16px;color:var(--fg)}
+.drawer-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:65}
+.drawer{position:absolute;left:0;top:0;bottom:0;width:min(300px,80vw);background:var(--modal);border-right:1px solid var(--line);padding:calc(16px + env(safe-area-inset-top)) 0 16px;animation:dr .2s ease}
+@keyframes dr{from{transform:translateX(-100%)}}
+.drawer button{display:flex;gap:14px;align-items:center;width:100%;padding:15px 22px;font-size:16px;color:var(--fg);text-align:left}
+.drawer button:active{background:rgba(127,127,127,.15)}
+.drawer .dlbl{font-size:12px;color:#818384;text-transform:uppercase;letter-spacing:.08em;padding:8px 22px}
+#codeBg{position:fixed;inset:0;z-index:70;display:flex;align-items:flex-start;justify-content:center;padding-top:120px}
+#codeBox{background:#f8f8f8;border-radius:6px;padding:8px;display:flex;gap:6px;box-shadow:0 4px 20px rgba(0,0,0,.4)}
 #codeBox.shake{animation:shake .4s}
-#codeIn{width:190px;background:#2a2a2c;border:none;border-radius:4px;color:#fff;font-size:16px;padding:10px 12px;outline:none;letter-spacing:.2em}
-#codeGo{background:#6aaa64;color:#fff;font-weight:700;border-radius:4px;padding:0 14px;font-size:16px}
+#codeIn{width:190px;background:#e3e3e3;border:none;border-radius:4px;color:#121213;font-size:16px;padding:10px 12px;outline:none;letter-spacing:.2em}
+#codeGo{background:#538d4e;color:#fff;font-weight:700;border-radius:4px;padding:0 14px;font-size:16px}
 
 /* ═════════ SETUP ═════════ */
 #setup{position:fixed;inset:0;background:#0d0f14;color:#e8eaf0;display:flex;align-items:center;justify-content:center;padding:20px;z-index:80}
@@ -84,24 +94,32 @@ body.veil #vault,body.veil #player,body.veil #puzzle{filter:blur(30px)}
 .card h2{font-size:18px;margin-bottom:6px}
 .card p{font-size:13px;color:#8b90a0;line-height:1.5;margin-bottom:12px}
 .fld{width:100%;padding:12px;border-radius:10px;border:1px solid #2c3140;background:#0d0f14;color:#e8eaf0;font-size:16px;margin-bottom:10px;outline:none}
-.fld:focus{border-color:#6aaa64}
-.pbtn{width:100%;padding:13px;border-radius:10px;background:#6aaa64;color:#fff;font-weight:700;font-size:15px}
+.fld:focus{border-color:#538d4e}
+textarea.fld{min-height:150px;resize:vertical;line-height:1.5}
+.pbtn{width:100%;padding:13px;border-radius:10px;background:#538d4e;color:#fff;font-weight:700;font-size:15px}
 .sbtn{padding:9px 13px;border-radius:9px;background:#222634;border:1px solid #2c3140;color:#e8eaf0;font-size:13px;font-weight:600;white-space:nowrap}
+.sbtn.g{background:#538d4e;border-color:#538d4e;color:#fff}
+.sbtn.red{color:#ff6b6b}
 .sbtn:active,.pbtn:active{transform:scale(.97)}
 .err{color:#ff6b6b;font-size:13px;min-height:18px;margin-bottom:6px}
 
-/* ═════════ VAULT ═════════ */
-#vault{position:fixed;inset:0;background:#0d0f14;color:#e8eaf0;display:flex;flex-direction:column;z-index:40;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
-.vtop{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #1f2330}
-.vtop h1{font-size:17px;flex:1;font-weight:700}
+/* ═════════ VAULT SHELL ═════════ */
+#vault{position:fixed;inset:0;background:#0d0f14;color:#e8eaf0;display:flex;flex-direction:column;z-index:40;padding-top:env(safe-area-inset-top)}
+.vtop{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #1f2330;flex-shrink:0}
+.vtop h1{font-size:18px;flex:1;font-weight:800;letter-spacing:.02em}
 .vtop button{width:38px;height:38px;border-radius:10px;background:#171a22;border:1px solid #262a36;font-size:17px}
-.crumbs{display:flex;gap:4px;padding:8px 12px 0;overflow-x:auto;white-space:nowrap;font-size:13px;scrollbar-width:none}
+#vMain{flex:1;overflow-y:auto;padding:10px 12px 110px}
+.tabbar{display:flex;border-top:1px solid #1f2330;background:#0f1218;flex-shrink:0;padding-bottom:env(safe-area-inset-bottom)}
+.tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 9px;font-size:11px;color:#8b90a0;font-weight:600}
+.tabbar button .ti{font-size:21px;filter:grayscale(1);opacity:.7}
+.tabbar button.on{color:#e8eaf0}.tabbar button.on .ti{filter:none;opacity:1}
+.fab{position:fixed;right:16px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:45;background:#538d4e;color:#fff;font-weight:800;font-size:15px;padding:14px 18px;border-radius:999px;box-shadow:0 6px 20px rgba(0,0,0,.5)}
+.crumbs{display:flex;gap:4px;overflow-x:auto;white-space:nowrap;font-size:13px;scrollbar-width:none;margin-bottom:6px}
 .crumbs button{color:#8b90a0;padding:4px 6px;border-radius:6px}
 .crumbs button:last-child{color:#e8eaf0;font-weight:700}
 .crumbs .sep{color:#3a4052;padding:4px 0}
-.vbar{display:flex;gap:6px;padding:10px 12px;overflow-x:auto;scrollbar-width:none;flex-shrink:0}
-#vMain{flex:1;overflow-y:auto;padding:0 12px 24px}
-.banner{background:#1d2a1c;border:1px solid #33502f;color:#cfe8cb;border-radius:12px;padding:12px;margin:4px 0 10px;font-size:13px;line-height:1.45}
+.vbar{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-bottom:10px}
+.banner{background:#1d2a1c;border:1px solid #33502f;color:#cfe8cb;border-radius:12px;padding:12px;margin:0 0 10px;font-size:13px;line-height:1.45}
 .banner.warn{background:#2c2312;border-color:#5c4718;color:#f1d9a0}
 .banner .bb{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
 .vgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
@@ -109,12 +127,81 @@ body.veil #vault,body.veil #player,body.veil #puzzle{filter:blur(30px)}
 @media(min-width:900px){.vgrid{grid-template-columns:repeat(4,1fr)}}
 .vc{background:#171a22;border:1px solid #262a36;border-radius:12px;overflow:hidden;position:relative;cursor:pointer;user-select:none}
 .vc:active{transform:scale(.98)}
-.vc .th{aspect-ratio:16/10;background:#11131a center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-size:30px;color:#3a4052}
+.vc .th{aspect-ratio:16/10;background:#11131a center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-size:30px;color:#3a4052;position:relative}
 .vc.dir .th{font-size:38px;color:inherit;background:#141824}
 .vc .nm{font-size:12px;padding:7px 34px 8px 9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .vc .more{position:absolute;right:2px;bottom:0;width:32px;height:32px;color:#8b90a0;font-size:18px}
-.vc .dur{position:absolute;right:6px;top:6px;background:rgba(0,0,0,.7);font-size:10px;padding:2px 5px;border-radius:4px;font-family:monospace}
-.empty{text-align:center;color:#6b7080;font-size:14px;padding:50px 10px;line-height:1.6}
+.dur{position:absolute;right:5px;top:5px;background:rgba(0,0,0,.72);color:#fff;font-size:10px;padding:2px 5px;border-radius:4px;font-family:monospace}
+.th.loaded,.mt.loaded,.tn.loaded,.hero.loaded{color:transparent!important;font-size:0!important}
+.vbadge{position:absolute;left:5px;bottom:5px;background:rgba(0,0,0,.7);border-radius:4px;font-size:10px;padding:1px 4px}
+.empty{text-align:center;color:#6b7080;font-size:14px;padding:40px 10px;line-height:1.6}
+.empty .big{font-size:40px;margin-bottom:6px}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 0 10px;padding-bottom:2px}
+.chip{flex-shrink:0;padding:7px 12px;border-radius:999px;background:#171a22;border:1px solid #262a36;font-size:13px;color:#c9ccd6;white-space:nowrap}
+.chip.on{background:#538d4e;border-color:#538d4e;color:#fff}
+.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:#8b90a0;margin:16px 2px 8px;font-weight:700}
+.row2{display:flex;gap:8px;align-items:center}
+.in{flex:1;min-width:0;padding:10px 12px;border-radius:10px;border:1px solid #2c3140;background:#11131a;color:#e8eaf0;font-size:15px;outline:none}
+select.in{flex:0 0 auto}
+
+/* calendar */
+.cal-h{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.cal-h h2{flex:1;text-align:center;font-size:18px}
+.stat-row{display:flex;gap:8px;margin-bottom:12px}
+.stat{flex:1;background:#171a22;border:1px solid #262a36;border-radius:12px;padding:9px;text-align:center}
+.stat b{display:block;font-size:20px}.stat span{font-size:11px;color:#8b90a0}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-dow{text-align:center;font-size:11px;color:#6b7080;font-weight:700;padding-bottom:2px}
+.cal-cell{aspect-ratio:.78;background:#151821;border:1px solid #1f2330;border-radius:8px;position:relative;overflow:hidden;cursor:pointer}
+.cal-cell.has{background:#1a1f2b;border-color:#2e3546}
+.cal-cell.today{border:2px solid #538d4e}
+.cal-cell .dn{position:absolute;top:3px;left:5px;font-size:11px;font-weight:700;z-index:2;text-shadow:0 1px 3px #000}
+.cal-th{position:absolute;inset:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:1px}
+.cal-th.n1{grid-template-columns:1fr;grid-template-rows:1fr}
+.cal-th.n2{grid-template-rows:1fr}
+.cal-th i{background:#11131a center/cover no-repeat;font-style:normal;font-size:0}
+.cal-dot{position:absolute;bottom:5px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:#b59f3b}
+.cal-more{position:absolute;right:3px;bottom:3px;background:rgba(0,0,0,.75);font-size:9px;padding:1px 4px;border-radius:4px;z-index:2}
+.li{display:flex;gap:10px;align-items:center;padding:10px;background:#171a22;border:1px solid #262a36;border-radius:12px;margin-bottom:8px;cursor:pointer}
+.li .grow{flex:1;min-width:0}
+.li .t{font-size:14px;font-weight:700}
+.li .s{font-size:12px;color:#8b90a0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.li .tn{width:52px;height:52px;border-radius:8px;background:#11131a center/cover no-repeat;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;position:relative}
+.otd{background:linear-gradient(135deg,#1d2a1c,#171a22);border:1px solid #33502f;border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:13px;cursor:pointer}
+
+/* posts */
+.post{background:#171a22;border:1px solid #262a36;border-radius:14px;padding:12px;margin-bottom:12px}
+.post-h{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.post-h .tm{font-size:12px;color:#8b90a0;font-family:monospace;flex:1}
+.post-txt{font-size:15px;line-height:1.55;white-space:pre-wrap;word-wrap:break-word}
+.mgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:10px}
+.mt{aspect-ratio:1;border-radius:8px;background:#11131a center/cover no-repeat;position:relative;display:flex;align-items:center;justify-content:center;font-size:22px;color:#3a4052;cursor:pointer;overflow:hidden}
+.mt .vbadge{font-size:11px}
+.mt .rm{position:absolute;top:3px;right:3px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.75);color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center}
+.mt.missing{border:1px dashed #5c4718;color:#f1d9a0;font-size:12px}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.tag{padding:5px 10px;border-radius:999px;background:#222634;font-size:12px;cursor:pointer}
+
+/* items */
+.igrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media(min-width:600px){.igrid{grid-template-columns:repeat(5,1fr)}}
+.ic2{background:#171a22;border:1px solid #262a36;border-radius:12px;overflow:hidden;cursor:pointer;position:relative}
+.ic2 .th{aspect-ratio:1;background:#11131a center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-size:34px}
+.ic2 .nm{font-size:12px;font-weight:700;padding:6px 7px 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ic2 .cnt{position:absolute;top:5px;right:5px;background:rgba(0,0,0,.75);font-size:11px;font-weight:700;padding:1px 6px;border-radius:999px}
+.ic2.sel{outline:3px solid #538d4e}
+.hero{width:100%;aspect-ratio:16/10;border-radius:14px;background:#171a22 center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-size:64px;margin-bottom:12px}
+
+/* panels (full-screen pages) */
+.panel{position:fixed;inset:0;background:#0d0f14;color:#e8eaf0;z-index:150;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);animation:pin .18s ease}
+@keyframes pin{from{transform:translateX(30px);opacity:0}}
+.ph{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #1f2330}
+.ph h2{flex:1;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ph .back{width:38px;height:38px;border-radius:10px;background:#171a22;border:1px solid #262a36;font-size:18px}
+.pb{flex:1;overflow-y:auto;padding:12px 12px 40px}
+.pf{display:flex;gap:8px;padding:10px 12px;border-top:1px solid #1f2330}
+.pf button{flex:1}
+
 .sh-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;display:flex;align-items:flex-end;justify-content:center}
 .sh{background:#171a22;border-radius:18px 18px 0 0;width:100%;max-width:480px;padding:14px 14px calc(18px + env(safe-area-inset-bottom));max-height:85vh;overflow:auto;color:#e8eaf0}
 .sh-t{font-size:13px;color:#8b90a0;text-align:center;padding:4px 10px 10px;word-break:break-all}
@@ -124,32 +211,32 @@ body.veil #vault,body.veil #player,body.veil #puzzle{filter:blur(30px)}
 .sh label{display:flex;justify-content:space-between;align-items:center;padding:12px 4px;font-size:14px;gap:10px;border-bottom:1px solid #222634}
 .sh label small{display:block;color:#8b90a0;font-size:11px;margin-top:2px}
 .sh select,.sh input[type=text]{background:#0d0f14;color:#e8eaf0;border:1px solid #2c3140;border-radius:8px;padding:7px 9px;font-size:14px}
-.sh input[type=checkbox]{width:22px;height:22px;accent-color:#6aaa64}
+.sh input[type=checkbox]{width:22px;height:22px;accent-color:#538d4e}
 .sh h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#8b90a0;margin:16px 4px 4px}
-#vToast{position:fixed;left:50%;bottom:calc(30px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#222634;border:1px solid #33394b;color:#e8eaf0;padding:10px 16px;border-radius:12px;font-size:13px;z-index:400;max-width:86vw;text-align:center;white-space:pre-line;transition:opacity .3s;opacity:0;pointer-events:none}
+#vToast{position:fixed;left:50%;bottom:calc(140px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#222634;border:1px solid #33394b;color:#e8eaf0;padding:10px 16px;border-radius:12px;font-size:13px;z-index:400;max-width:86vw;text-align:center;white-space:pre-line;transition:opacity .3s;opacity:0;pointer-events:none}
 #vToast.on{opacity:1}
-.prog{height:4px;background:#262a36;border-radius:2px;margin-top:8px;overflow:hidden}
-.prog i{display:block;height:100%;background:#6aaa64;width:0}
+.prog{height:4px;background:#262a36;border-radius:2px;margin-top:8px;overflow:hidden;min-width:180px}
+.prog i{display:block;height:100%;background:#538d4e;width:0}
 
-/* ═════════ PLAYER ═════════ */
-#player{position:fixed;inset:0;background:#000;z-index:200;display:flex;align-items:center;justify-content:center;touch-action:none;color:#fff}
-#pv{max-width:100%;max-height:100%;width:100%;height:100%;object-fit:contain}
+/* ═════════ VIEWER / PLAYER ═════════ */
+#viewer,#player{position:fixed;inset:0;background:#000;z-index:220;display:flex;align-items:center;justify-content:center;touch-action:none;color:#fff}
+#vwImg,#vwVid,#pv{max-width:100%;max-height:100%;width:100%;height:100%;object-fit:contain}
 .pbar{position:absolute;left:0;right:0;padding:12px 14px;display:flex;align-items:center;gap:8px;transition:opacity .25s;z-index:2}
 .ptop{top:0;background:linear-gradient(rgba(0,0,0,.75),transparent);padding-top:calc(12px + env(safe-area-inset-top))}
 .pbot{bottom:0;flex-direction:column;align-items:stretch;background:linear-gradient(transparent,rgba(0,0,0,.8));padding-bottom:calc(14px + env(safe-area-inset-bottom))}
-#player.hide-ui .pbar{opacity:0;pointer-events:none}
+.hide-ui .pbar{opacity:0;pointer-events:none}
 .pbtn2{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.14);font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.pbtn2.on{background:#6aaa64}
+.pbtn2.on{background:#538d4e}
 .ptitle{flex:1;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
 .pctl{display:flex;justify-content:center;align-items:center;gap:14px;margin-top:8px}
 .pctl .big{width:58px;height:58px;font-size:24px}
-#pseek{width:100%;accent-color:#6aaa64}
+#pseek{width:100%;accent-color:#538d4e}
 .ptime{display:flex;justify-content:space-between;font-size:11px;font-family:monospace;color:#bbb}
 .pflash{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.6);padding:10px 18px;border-radius:14px;font-size:15px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:3}
 .pflash.on{opacity:1}
 
 /* ═════════ PUZZLE ═════════ */
-#puzzle{position:fixed;inset:0;background:#0d0f14;color:#e8eaf0;z-index:210;display:flex;flex-direction:column;align-items:center;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+#puzzle{position:fixed;inset:0;background:#0d0f14;color:#e8eaf0;z-index:230;display:flex;flex-direction:column;align-items:center;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
 .pzh{display:flex;align-items:center;gap:6px;padding:10px 12px;width:100%;max-width:900px;flex-wrap:wrap}
 .pill{font-family:monospace;font-size:12px;background:#171a22;border:1px solid #262a36;border-radius:20px;padding:5px 11px;color:#8b90a0}
 .pill b{color:#f5a623}
@@ -164,15 +251,20 @@ body.veil #vault,body.veil #player,body.veil #puzzle{filter:blur(30px)}
 <!-- ═════════ DECOY ═════════ -->
 <div id="decoy">
   <header class="dh">
+    <button class="ic" id="dMenu" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg></button>
+    <div class="sp"></div>
+    <button class="ic" id="dHint" aria-label="Hint"><svg viewBox="0 0 24 24"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6A4.997 4.997 0 0 1 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z"/></svg></button>
+    <button class="ic" id="dStats" aria-label="Statistics"><svg viewBox="0 0 24 24"><path d="M16 11V3H8v6H2v12h20V11h-6zm-6-6h4v14h-4V5zm-6 6h4v8H4v-8zm16 8h-4v-6h4v6z"/></svg></button>
     <button class="ic" id="dHelp" aria-label="Help"><svg viewBox="0 0 24 24"><path d="M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z"/></svg></button>
-    <h1 id="dTitle">WORDLE</h1>
-    <div class="dh-r">
-      <button class="ic" id="dStats" aria-label="Statistics"><svg viewBox="0 0 24 24"><path d="M16 11V3H8v6H2v12h20V11h-6zm-6-6h4v14h-4V5zm-6 6h4v8H4v-8zm16 8h-4v-6h4v6z"/></svg></button>
-      <button class="ic" id="dGear" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></button>
-    </div>
+    <button class="ic" id="dGear" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></button>
+    <button class="dpill" id="dArch">Past Puzzles</button>
   </header>
   <main class="dm"><div id="board"></div></main>
   <div id="kbd"></div>
+  <div id="dDone" class="hidden">
+    <button class="dbtn" id="dSee">See results</button>
+    <button class="dbtn" id="dPast">Play past puzzles</button>
+  </div>
   <div id="dToast"></div>
   <div id="codeBg" class="hidden">
     <div id="codeBox">
@@ -201,19 +293,30 @@ body.veil #vault,body.veil #player,body.veil #puzzle{filter:blur(30px)}
     <button id="vSettings" aria-label="Settings">⚙</button>
     <button id="vLock" aria-label="Lock">🔒</button>
   </div>
-  <div class="crumbs" id="crumbs"></div>
-  <div class="vbar" id="vbar">
-    <button class="sbtn" id="bAdd">＋ Add videos</button>
-    <button class="sbtn" id="bShuffle">🔀 Shuffle</button>
-    <button class="sbtn" id="bPlayAll">▶ Play all</button>
-    <button class="sbtn" id="bPuzzle">🧩 Puzzle</button>
-    <button class="sbtn" id="bFolder">📁 New folder</button>
-  </div>
   <div id="vMain"></div>
+  <nav class="tabbar" id="tabbar">
+    <button data-tab="cal"><span class="ti">📅</span>Journal</button>
+    <button data-tab="items"><span class="ti">🏷️</span>Items</button>
+    <button data-tab="files"><span class="ti">📁</span>Files</button>
+  </nav>
+  <button class="fab" id="fab">✍️ Today</button>
 </div>
-<input type="file" id="addInput" multiple accept="video/*,.mp4,.m4v,.webm,.mkv,.mov,.3gp" class="hidden">
+<input type="file" id="addInput" multiple accept="video/*,image/*" class="hidden">
+<input type="file" id="mediaInput" multiple accept="image/*,video/*" class="hidden">
 <input type="file" id="roInput" webkitdirectory multiple class="hidden">
+<input type="file" id="zipInput" accept=".zip,application/zip" class="hidden">
 <div id="vToast"></div>
+
+<!-- ═════════ VIEWER (journal media) ═════════ -->
+<div id="viewer" class="hidden">
+  <img id="vwImg" alt="">
+  <video id="vwVid" playsinline controls class="hidden"></video>
+  <div class="pbar ptop">
+    <button class="pbtn2" id="vwClose">✕</button>
+    <div class="ptitle" id="vwTitle"></div>
+    <button class="pbtn2" id="vwPuz" title="Slide puzzle">🧩</button>
+  </div>
+</div>
 
 <!-- ═════════ PLAYER ═════════ -->
 <div id="player" class="hidden">
@@ -260,13 +363,20 @@ body.veil #vault,body.veil #player,body.veil #puzzle{filter:blur(30px)}
 'use strict';
 const $=s=>document.querySelector(s);
 const el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e};
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=s=>{s=Math.max(0,Math.floor(s||0));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=String(s%60).padStart(2,'0');return h?h+':'+String(m).padStart(2,'0')+':'+x:m+':'+x};
 const shuffleArr=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const pad=n=>String(n).padStart(2,'0');
+const dstr=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today=()=>dstr(new Date());
+const nowTime=()=>{const d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())};
+const longDate=ds=>new Date(ds+'T12:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+const shortDate=ds=>new Date(ds+'T12:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
 
 /* ───────── config ───────── */
 const CFG_KEY='wg_cfg';
-const DEFAULTS={title:'WORDLE',taps:1,autolock:true,deep:true,grid:3,muted:false};
+const DEFAULTS={title:'Wordle',taps:1,autolock:true,deep:true,grid:3,muted:false,tab:'cal',inbox:'Inbox',inboxMove:true};
 let cfg=null;
 try{cfg=JSON.parse(localStorage.getItem(CFG_KEY))}catch(e){}
 cfg=Object.assign({},DEFAULTS,cfg||{});
@@ -282,7 +392,7 @@ async function derive(pw,salt,iter){
 async function setCode(pw){const salt=crypto.getRandomValues(new Uint8Array(16));cfg.salt=b64(salt);cfg.iter=200000;cfg.hash=await derive(pw,salt,cfg.iter);saveCfg()}
 async function checkCode(pw){if(!cfg.hash)return false;return (await derive(pw,unb64(cfg.salt),cfg.iter))===cfg.hash}
 
-/* ───────── IndexedDB (folder handle + thumbnails) ───────── */
+/* ───────── IndexedDB ───────── */
 let _db;
 function db(){return _db||(_db=new Promise((res,rej)=>{const r=indexedDB.open('wg-store',1);r.onupgradeneeded=()=>{r.result.createObjectStore('kv');r.result.createObjectStore('thumbs')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))}
 async function idb(store,mode,fn){const d=await db();return new Promise((res,rej)=>{const t=d.transaction(store,mode);const rq=fn(t.objectStore(store));t.oncomplete=()=>res(rq?rq.result:undefined);t.onerror=()=>rej(t.error)})}
@@ -293,17 +403,15 @@ const thSet=(k,v)=>idb('thumbs','readwrite',s=>s.put(v,k));
 const clearStore=n=>idb(n,'readwrite',s=>s.clear());
 
 /* ═════════════════════ DECOY GAME ═════════════════════ */
-const WORDS=('about above actor acute adopt adult after again agent agree ahead alarm album alert alike alive allow alone along alter amber amend angel anger angle angry apart apple apply arena argue arise armor aroma arrow aside asset audio audit avoid awake award aware bacon badge baker basic basin beach beard beast begin being below bench berry birth black blade blame blank blast blaze bleak blend bless blind block bloom board boast bonus boost booth brain brake brand brave bread break brick bride brief bring brisk broad brook brown brush build bunch burst cabin cable camel candy canoe cargo carry catch cause cedar chain chair chalk charm chart chase cheap check cheek cheer chess chest chief child chill chord civic claim class clean clear clerk click cliff climb clock close cloth cloud coach coast color comet coral couch count court cover crack craft crane crash cream creek crisp cross crowd crown crust curve cycle daily dance decay delay depth diary dizzy dough draft drama dream dress drift drink drive eager eagle early earth eight elbow elder empty enjoy enter equal error event exact extra fable faith false fancy feast fence ferry fever fiber field final flame flash fleet flock flood floor flour fluid focus force forge forum frame fresh front frost fruit giant glass globe glove grace grain grand grape grass great green grill guard guess guide habit happy harsh heart heavy hedge honey horse hotel house human humor ideal image index inner input irony ivory jelly jewel joint judge juice knife knock label lemon level light limit linen logic loyal lucky lunar magic major maple march match medal metal minor model money month motor mount mouse mouth movie music nerve never night noble noise north novel nurse ocean offer olive onion opera orbit order other outer oxide paint panel paper party pasta patch peace peach pearl pedal penny phase phone photo piano pilot pinch pitch pixel pizza place plain plane plant plate plaza point polar pound power press price pride prime print prize proof proud pulse punch pupil queen quest quick quiet quilt quote radar radio raise rally ranch range rapid raven reach ready realm rebel relax reply ridge rifle right rival river roast robin robot rocky round route royal rural salad sauce scale scarf scene scent scoop scope score scout shade shake shape share shark sharp sheep shelf shell shine shirt shore short shout sight skill skirt slate sleep slice slide slope smart smile smoke snack snake solar solid sound south space spare spark speak spice spike spine spoon sport spray squad stack staff stage stair stamp stand start steam steel stick stone storm story stove straw strip sugar sunny swamp sweet swing table taste teach thick thing think thumb tiger toast token topic torch total touch tower track trade trail train treat trend trial tribe trick truck trunk trust truth tulip tutor uncle under unity upper urban usage usual valid value vapor vivid voice wagon waste watch water whale wheat wheel while white whole woman world worry wrist write yacht yield young youth zebra').split(' ');
+const WORDS=('about above actor acute adopt adult after again agent agree ahead alarm album alert alike alive allow alone along alter amber amend angel anger angle angry apart apple apply arena argue arise armor aroma arrow aside asset audio audit avoid awake award aware bacon badge baker basic basin beach beard beast begin being below bench berry birth black blade blame blank blast blaze bleak blend bless blind block bloom board boast bonus boost booth brain brake brand brave bread break brick bride brief bring brisk broad brook brown brush build bunch burst cabin cable camel candy canoe cargo carry catch cause cedar chain chair chalk charm chart chase cheap check cheek cheer chess chest chief child chill chord civic claim class clean clear clerk click cliff climb clock close cloth cloud coach coast color comet coral couch count court cover crack craft crane crash cream creek crisp cross crowd crown crust curve cycle daily dance decay delay depth diary dizzy dough draft drama dream dress drift drink drive eager eagle early earth eight elbow elder empty enjoy enter equal error event exact extra fable faith false fancy feast fence ferry fever fiber field final flame flash fleet flock flood floor flour fluid focus force forge forum frame fresh front frost fruit giant glass globe glove grace grain grand grape grass great green grill guard guess guide habit happy harsh heart heavy hedge honey horse hotel house human humor ideal image index inner input irony ivory jelly jewel joint judge juice knife knock label lemon level light limit linen logic loyal lucky lunar magic major maple march match medal metal minor model money month motor mount mouse mouth movie music nerve never night noble noise north novel nurse ocean offer olive onion opera orbit order other outer oxide paint panel paper party pasta patch peace peach pearl pedal penny phase phone photo piano pilot pinch pitch pixel pizza place plain plane plant plate plaza point polar pound power press price pride prime print prize proof proud psych pulse punch pupil queen quest quick quiet quilt quote radar radio raise rally ranch range rapid raven reach ready realm rebel relax reply ridge rifle right rival river roast robin robot rocky round route royal rural salad sauce scale scarf scene scent scoop scope score scout shade shake shape share shark sharp sheep shelf shell shine shirt shore short shout sight skill skirt slate sleep slice slide slope smart smile smoke snack snake solar solid sound south space spare spark speak spice spike spine spoon sport spray squad stack staff stage stair stamp stand start steam steel stick stone storm story stove straw strip sugar sunny swamp sweet swing table taste teach thick thing think thumb tiger toast token topic torch total touch tower track trade trail train treat trend trial tribe trick truck trunk trust truth tulip tutor uncle under unity upper urban usage usual valid value vapor vivid voice wagon waste watch water whale wheat wheel while white whole woman world worry wrist write yacht yield young youth zebra').split(' ');
 const ICON_BACK='<svg viewBox="0 0 24 24"><path d="M22 3H7c-.69 0-1.23.35-1.59.88L0 12l5.41 8.11c.36.53.9.89 1.59.89h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H7.07L2.4 12l4.66-7H22v14zm-11.59-2L14 13.41 17.59 17 19 15.59 15.41 12 19 8.41 17.59 7 14 10.59 10.41 7 9 8.41 12.59 12 9 15.59z"/></svg>';
 const decoy=$('#decoy'),board=$('#board'),kbd=$('#kbd');
-let game,cur='',revealing=false;
 const dayNum=()=>{const d=new Date();return Math.floor(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5)};
-function loadGame(){
-  const day=dayNum();let g=null;try{g=JSON.parse(localStorage.getItem('wg_game'))}catch(e){}
-  if(!g||g.day!==day)g={day,guesses:[],done:false,won:false};
-  game=g;game.answer=WORDS[(day*7919+13)%WORDS.length];
-}
-const saveGame=()=>{try{localStorage.setItem('wg_game',JSON.stringify({day:game.day,guesses:game.guesses,done:game.done,won:game.won}))}catch(e){}};
+const dayLabel=n=>new Date(n*864e5+12*36e5).toLocaleDateString(undefined,{timeZone:'UTC',month:'long',day:'numeric',year:'numeric'});
+let games={};try{games=JSON.parse(localStorage.getItem('wg_games'))||{}}catch(e){}
+let playDay=dayNum(),game,cur='',revealing=false;
+function loadGame(){const g=games[playDay]||(games[playDay]={guesses:[],done:false,won:false});g.answer=WORDS[(playDay*7919+13)%WORDS.length];game=g;cur=''}
+function saveGames(){const keys=Object.keys(games).map(Number).sort((a,b)=>b-a);keys.slice(60).forEach(k=>delete games[k]);try{localStorage.setItem('wg_games',JSON.stringify(games,(k,v)=>k==='answer'?undefined:v))}catch(e){}}
 function score(g,a){const r=Array(5).fill('absent'),x=a.split('');for(let i=0;i<5;i++)if(g[i]===x[i]){r[i]='correct';x[i]=null}for(let i=0;i<5;i++)if(r[i]!=='correct'){const j=x.indexOf(g[i]);if(j>-1){r[i]='present';x[j]=null}}return r}
 function buildBoard(){board.innerHTML='';for(let r=0;r<6;r++){const row=el('div','row');for(let c=0;c<5;c++)row.append(el('div','tile'));board.append(row)}}
 function buildKbd(){
@@ -317,15 +425,14 @@ function buildKbd(){
 function renderBoard(){
   const rows=board.children;
   for(let r=0;r<6;r++){
-    const tiles=rows[r].children,g=game.guesses[r];
-    const res=g?score(g,game.answer):null;
+    const tiles=rows[r].children,g=game.guesses[r],res=g?score(g,game.answer):null;
     for(let c=0;c<5;c++){
       const t=tiles[c];let ch='',cls='tile';
-      if(g){ch=g[c];cls+=' '+res[c]}
-      else if(r===game.guesses.length){ch=cur[c]||'';if(ch)cls+=' filled'}
+      if(g){ch=g[c];cls+=' '+res[c]}else if(r===game.guesses.length){ch=cur[c]||'';if(ch)cls+=' filled'}
       t.textContent=ch;t.className=cls;
     }
   }
+  kbd.classList.toggle('hidden',game.done);$('#dDone').classList.toggle('hidden',!game.done);
 }
 function renderKeys(){
   const best={},rank={absent:1,present:2,correct:3};
@@ -334,9 +441,9 @@ function renderKeys(){
 }
 function dToast(msg,ms=1200){const t=el('div','dt',esc(msg));$('#dToast').append(t);setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300)},ms)}
 function shakeRow(){const r=board.children[game.guesses.length];if(!r)return;r.classList.remove('shake');void r.offsetWidth;r.classList.add('shake')}
+const decoyBusy=()=>decoy.classList.contains('hidden')||!$('#codeBg').classList.contains('hidden')||decoy.querySelector('.dmod-bg,.drawer-bg');
 function typeKey(k){
-  if(decoy.classList.contains('hidden')||!$('#codeBg').classList.contains('hidden')||revealing)return;
-  if(game.done){if(k==='enter')openStats();return}
+  if(decoyBusy()||revealing||game.done)return;
   if(k==='enter')return submitGuess();
   if(k==='back')cur=cur.slice(0,-1);else if(/^[a-z]$/.test(k)&&cur.length<5)cur+=k;
   renderBoard();
@@ -347,16 +454,14 @@ function submitGuess(){
   game.guesses.push(g);cur='';
   const res=score(g,game.answer),tiles=board.children[rowIdx].children;
   revealing=true;
-  for(let i=0;i<5;i++){
-    setTimeout(()=>{tiles[i].classList.add('flip');setTimeout(()=>{tiles[i].className='tile '+res[i];tiles[i].textContent=g[i]},250)},i*300);
-  }
+  for(let i=0;i<5;i++)setTimeout(()=>{tiles[i].classList.add('flip');setTimeout(()=>{tiles[i].className='tile '+res[i];tiles[i].textContent=g[i]},250)},i*300);
   setTimeout(()=>{
-    revealing=false;renderBoard();renderKeys();
-    if(g===game.answer){game.done=true;game.won=true;dToast(['Genius','Magnificent','Impressive','Splendid','Great','Phew'][rowIdx],1800);recordStats(true,rowIdx)}
-    else if(game.guesses.length>=6){game.done=true;dToast(game.answer.toUpperCase(),4000);recordStats(false)}
-    saveGame();
-    if(game.done)setTimeout(openStats,2200);
-  },5*300+300);
+    revealing=false;
+    if(g===game.answer){game.done=game.won=true;dToast(['Genius','Magnificent','Impressive','Splendid','Great','Phew'][rowIdx],1800);if(playDay===dayNum())recordStats(true,rowIdx)}
+    else if(game.guesses.length>=6){game.done=true;dToast(game.answer.toUpperCase(),4000);if(playDay===dayNum())recordStats(false)}
+    renderBoard();renderKeys();saveGames();
+    if(game.done)setTimeout(openStats,2300);
+  },1800);
 }
 function loadStats(){let s=null;try{s=JSON.parse(localStorage.getItem('wg_stats'))}catch(e){}return s||{played:0,wins:0,streak:0,max:0,dist:[0,0,0,0,0,0]}}
 function recordStats(won,row){const s=loadStats();s.played++;if(won){s.wins++;s.streak++;s.max=Math.max(s.max,s.streak);s.dist[row]++}else s.streak=0;try{localStorage.setItem('wg_stats',JSON.stringify(s))}catch(e){}}
@@ -367,19 +472,39 @@ function dModal(html){
 function openStats(){
   const s=loadStats(),mx=Math.max(1,...s.dist);
   let d='';s.dist.forEach((n,i)=>{d+='<div class="dist"><span>'+(i+1)+'</span><div class="bar'+(game.won&&game.guesses.length===i+1?' hl':'')+'" style="width:'+Math.max(7,n/mx*100)+'%">'+n+'</div></div>'});
-  dModal('<h2 style="text-align:center">Statistics</h2><div class="st-nums"><div><b>'+s.played+'</b><span>Played</span></div><div><b>'+(s.played?Math.round(s.wins/s.played*100):0)+'</b><span>Win %</span></div><div><b>'+s.streak+'</b><span>Current Streak</span></div><div><b>'+s.max+'</b><span>Max Streak</span></div></div><h2 style="font-size:15px;text-align:center">Guess Distribution</h2>'+d);
+  dModal('<h2 style="text-align:center">Statistics</h2><div class="st-nums"><div><b>'+s.played+'</b><span>Played</span></div><div><b>'+(s.played?Math.round(s.wins/s.played*100):0)+'</b><span>Win %</span></div><div><b>'+s.streak+'</b><span>Current Streak</span></div><div><b>'+s.max+'</b><span>Max Streak</span></div></div><h2 style="font-size:14px;text-align:center">Guess Distribution</h2>'+d);
 }
-$('#dStats').onclick=openStats;
-$('#dHelp').onclick=()=>dModal('<h2>How To Play</h2><p>Guess the word in 6 tries.</p><ul><li>Each guess must be a valid 5-letter word.</li><li>The color of the tiles will change to show how close your guess was to the word.</li></ul><p><b>Green</b> — the letter is in the word and in the correct spot.<br><b>Yellow</b> — the letter is in the word but in the wrong spot.<br><b>Gray</b> — the letter is not in the word in any spot.</p><p>A new puzzle is released daily at midnight.</p>');
-$('#dGear').onclick=()=>{
-  const dark=decoy.classList.contains('dark');let hard=localStorage.getItem('wg_hard')==='1';
-  const m=dModal('<h2>Settings</h2><div class="set-row"><div>Hard Mode<small>Any revealed hints must be used in subsequent guesses</small></div><div class="sw'+(hard?' on':'')+'" id="swHard"></div></div><div class="set-row"><div>Dark Theme</div><div class="sw'+(dark?' on':'')+'" id="swDark"></div></div><div class="set-row"><div>High Contrast Mode<small>For improved color vision</small></div><div class="sw"></div></div>');
-  m.querySelector('#swDark').onclick=e=>{const on=decoy.classList.toggle('dark');e.target.classList.toggle('on',on);try{localStorage.setItem('wg_dark',on?'1':'0')}catch(x){}setTheme()};
+function openHelp(){dModal('<h2>How To Play</h2><p>Guess the word in 6 tries.</p><ul><li>Each guess must be a valid 5-letter word.</li><li>The color of the tiles will change to show how close your guess was to the word.</li></ul><p><b>Green</b>: the letter is in the word and in the correct spot.<br><b>Yellow</b>: the letter is in the word but in the wrong spot.<br><b>Gray</b>: the letter is not in the word in any spot.</p><p>A new puzzle is released daily at midnight.</p>')}
+function openArchive(){
+  const m=dModal('<h2>Past Puzzles</h2><div id="archList"></div>'),list=m.querySelector('#archList'),t=dayNum();
+  for(let n=t;n>t-30;n--){const g=games[n];const b=el('button','arch','<span>'+esc(dayLabel(n))+(n===t?' · Today':'')+'</span><span>'+(g&&g.done?(g.won?'✓ '+g.guesses.length+'/6':'✗'):g&&g.guesses.length?'…':'')+'</span>');
+    b.onclick=()=>{m.parentNode.remove();playDay=n;loadGame();renderBoard();renderKeys();if(n!==t)dToast(dayLabel(n),1500)};list.append(b)}
+}
+function openSettingsD(){
+  const light=decoy.classList.contains('light');let hard=localStorage.getItem('wg_hard')==='1';
+  const m=dModal('<h2>Settings</h2><div class="set-row"><div>Hard Mode<small>Any revealed hints must be used in subsequent guesses</small></div><div class="sw'+(hard?' on':'')+'" id="swHard"></div></div><div class="set-row"><div>Dark Theme</div><div class="sw'+(light?'':' on')+'" id="swDark"></div></div><div class="set-row"><div>High Contrast Mode<small>For improved color vision</small></div><div class="sw"></div></div><div class="set-row"><div>Onscreen Keyboard Input Only<small>Ignore key input except from the onscreen keyboard</small></div><div class="sw"></div></div>');
+  m.querySelector('#swDark').onclick=e=>{const isLight=decoy.classList.toggle('light');e.target.classList.toggle('on',!isLight);try{localStorage.setItem('wg_light',isLight?'1':'0')}catch(x){}setTheme()};
   m.querySelector('#swHard').onclick=e=>{hard=!hard;e.target.classList.toggle('on',hard);try{localStorage.setItem('wg_hard',hard?'1':'0')}catch(x){}};
+  m.querySelectorAll('.sw:not([id])').forEach(s=>s.onclick=()=>s.classList.toggle('on'));
+}
+$('#dStats').onclick=openStats;$('#dSee').onclick=openStats;
+$('#dHelp').onclick=openHelp;$('#dGear').onclick=openSettingsD;
+$('#dArch').onclick=openArchive;$('#dPast').onclick=openArchive;
+$('#dHint').onclick=()=>{
+  if(game.done)return dToast('Come back tomorrow for a new puzzle',1600);
+  const seen=new Set(game.guesses.join('').split('')),cand=[...new Set(game.answer.split(''))].filter(c=>!seen.has(c));
+  const c=cand.length?cand[Math.floor(Math.random()*cand.length)]:null;
+  dToast(c?'Hint: the word contains "'+c.toUpperCase()+'"':'Hint: you have all the letters!',2200);
 };
-function setTheme(){document.querySelector('meta[name=theme-color]').content=decoy.classList.contains('dark')?'#121213':'#ffffff'}
+$('#dMenu').onclick=()=>{
+  const bg=el('div','drawer-bg'),d=el('div','drawer');
+  d.innerHTML='<div class="dlbl">Games</div>';
+  [['🟩','Today\'s Puzzle',()=>{playDay=dayNum();loadGame();renderBoard();renderKeys()}],['🗓️','Past Puzzles',openArchive],['📊','Statistics',openStats],['❔','How To Play',openHelp],['⚙️','Settings',openSettingsD]].forEach(([i,t,f])=>{const b=el('button','','<span>'+i+'</span>'+esc(t));b.onclick=()=>{bg.remove();f()};d.append(b)});
+  bg.append(d);bg.addEventListener('click',e=>{if(e.target===bg)bg.remove()});decoy.append(bg);
+};
+function setTheme(){document.querySelector('meta[name=theme-color]').content=decoy.classList.contains('light')?'#ffffff':'#121213';document.body.style.background=decoy.classList.contains('light')?'#fff':'#121213'}
 document.addEventListener('keydown',e=>{
-  if(decoy.classList.contains('hidden')||!$('#codeBg').classList.contains('hidden')||e.ctrlKey||e.metaKey||e.altKey)return;
+  if(decoyBusy()||e.ctrlKey||e.metaKey||e.altKey)return;
   if(e.key==='Enter')typeKey('enter');else if(e.key==='Backspace')typeKey('back');else if(/^[a-zA-Z]$/.test(e.key))typeKey(e.key.toLowerCase());
 });
 
@@ -412,72 +537,83 @@ $('#suGo').addEventListener('click',async()=>{
 
 /* ═════════════════════ LOCK / UNLOCK ═════════════════════ */
 let locked=true,picking=false;
-const overlays=[];// back-button stack: close fns
+const overlays=[];
 function pushOverlay(close){overlays.push(close);try{history.pushState({ov:overlays.length},'')}catch(e){}}
 function popOverlay(){if(overlays.length)history.back()}
 window.addEventListener('popstate',()=>{const c=overlays.pop();if(c)c()});
+function setPicking(on,ms){picking=on;if(!on)return;clearTimeout(setPicking.t);setPicking.t=setTimeout(()=>picking=false,ms||600000)}
 
 function showDecoy(){
-  $('#dTitle').textContent=(cfg.title||'WORDLE').toUpperCase();
-  const t=cfg.title||'Wordle';document.title=t.charAt(0).toUpperCase()+t.slice(1).toLowerCase();
+  const t=cfg.title||'Wordle';document.title=t;
   decoy.classList.remove('hidden');setTheme();
 }
 async function unlock(gesture){
   locked=false;
   decoy.classList.add('hidden');
   $('#vault').classList.remove('hidden');
-  document.querySelector('meta[name=theme-color]').content='#0d0f14';
+  document.querySelector('meta[name=theme-color]').content='#0d0f14';document.body.style.background='#0d0f14';
   pushOverlay(()=>lock());
   await restoreVault(gesture);
   render();
 }
 function lock(){
   if(locked)return;locked=true;
-  closePlayer(true);closePuzzle(true);
-  document.querySelectorAll('.sh-bg').forEach(n=>n.remove());
+  closePlayer(true);closePuzzle(true);closeViewer(true);
+  document.querySelectorAll('.sh-bg,.panel').forEach(n=>n.remove());panels.length=0;
   $('#vault').classList.add('hidden');
-  overlays.length=0;
-  thumbQ.length=0;
+  overlays.length=0;thumbQ.length=0;
   showDecoy();
 }
 $('#vLock').onclick=()=>lock();
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){
-    $('#pv').pause();$('#pzVideo').pause();
+    $('#pv').pause();$('#pzVideo').pause();$('#vwVid').pause();
     if(!locked&&!picking){if(cfg.autolock)lock();else document.body.classList.add('veil')}
   }else document.body.classList.remove('veil');
 });
 window.addEventListener('pagehide',()=>{if(!locked&&!picking&&cfg.autolock)lock()});
 
-/* ═════════════════════ VAULT: storage layer ═════════════════════ */
+/* ═════════════════════ STORAGE LAYER ═════════════════════ */
 const hasFSA='showDirectoryPicker' in window;
 const VIDEO_RE=/\.(mp4|m4v|webm|mkv|mov|3gp|3gpp|avi|ts|mts|mpg|mpeg|ogv|wmv|flv)$/i;
+const IMG_RE=/\.(jpe?g|png|webp|gif|avif|bmp|heic|heif)$/i;
+const kindOf=n=>VIDEO_RE.test(n||'')?'v':IMG_RE.test(n||'')?'i':null;
+const kindOfBlob=b=>(b.type||'').startsWith('video/')?'v':(b.type||'').startsWith('image/')?'i':kindOf(b.name);
 const STD_ROOTS=/^(dcim|movies|pictures|download|downloads|music|documents|camera|0|emulated|sdcard)$/i;
-let root=null,stack=[],readOnly=false,pendingHandle=null,curDirs=[],curVids=[];
+let root=null,stack=[],readOnly=false,pendingHandle=null,curDirs=[],curFiles=[];
 const canMove=typeof FileSystemFileHandle!=='undefined'&&'move' in FileSystemFileHandle.prototype;
 
 function child(parent,name,extra){return Object.assign({name,path:(parent?parent.path:'')+'/'+name,parent},extra)}
 async function listDir(d){
-  const dirs=[],vids=[];
+  const dirs=[],files=[];
   if(d.h){
     for await(const [name,h] of d.h.entries()){
       if(name.startsWith('.'))continue;
       if(h.kind==='directory')dirs.push(child(d,name,{h}));
-      else if(VIDEO_RE.test(name))vids.push(child(d,name,{h,dir:d}));
+      else{const k=kindOf(name);if(k)files.push(child(d,name,{h,dir:d,k}))}
     }
   }else{
-    for(const [name,c] of d.kids){if(name.startsWith('.'))continue;if(c.kids)dirs.push(c);else if(VIDEO_RE.test(name))vids.push(c)}
+    for(const [name,c] of d.kids){if(name.startsWith('.'))continue;if(c.kids)dirs.push(c);else if(c.k)files.push(c)}
   }
   const cmp=(a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true,sensitivity:'base'});
-  return{dirs:dirs.sort(cmp),vids:vids.sort(cmp)};
+  return{dirs:dirs.sort(cmp),files:files.sort(cmp)};
 }
-async function gather(d,deep,out=[]){
-  const{dirs,vids}=await listDir(d);out.push(...vids);
-  if(deep)for(const s of dirs){if(out.length>=5000)break;await gather(s,true,out)}
+async function gather(d,deep,kind,out=[]){
+  const{dirs,files}=await listDir(d);out.push(...files.filter(f=>!kind||f.k===kind));
+  if(deep)for(const s of dirs){if(out.length>=5000)break;await gather(s,true,kind,out)}
   return out;
 }
-const fileOf=async v=>v.file||await v.h.getFile();
-async function hasNomedia(d){if(!d.h)return true;try{await d.h.getFileHandle('.nomedia');return true}catch(e){return false}}
+async function resolvePath(p){
+  const parts=p.split('/').filter(Boolean);
+  if(root.kids){let d=root;for(const x of parts){d=d.kids&&d.kids.get(x);if(!d)throw new Error('missing')}return{getFile:async()=>d.file}}
+  let d=root.h;for(let i=0;i<parts.length-1;i++)d=await d.getDirectoryHandle(parts[i]);
+  return d.getFileHandle(parts[parts.length-1]);
+}
+async function fileOf(v){if(v.file)return v.file;if(v.h)return v.h.getFile();if(v.p)return (await resolvePath(v.p)).getFile();throw new Error('no file')}
+const srcName=v=>v.name||v.n||'';
+const srcKind=v=>v.k||kindOf(srcName(v));
+const srcPath=v=>v.path||v.p;
+async function hasNomedia(d){if(!d||!d.h)return true;try{await d.h.getFileHandle('.nomedia');return true}catch(e){return false}}
 async function makeNomedia(d){const f=await d.h.getFileHandle('.nomedia',{create:true});const w=await f.createWritable();await w.close()}
 
 async function restoreVault(gesture){
@@ -486,25 +622,22 @@ async function restoreVault(gesture){
   if(!h)return;
   try{
     let p=await h.queryPermission({mode:'readwrite'});
-    if(p!=='granted'&&gesture){picking=true;try{p=await h.requestPermission({mode:'readwrite'})}finally{setTimeout(()=>picking=false,800)}}
-    if(p==='granted'){root=child(null,h.name,{h,path:''});stack=[root];pendingHandle=null}
-    else pendingHandle=h;
+    if(p!=='granted'&&gesture){setPicking(true,4000);p=await h.requestPermission({mode:'readwrite'})}
+    if(p==='granted')setRoot(h);else pendingHandle=h;
   }catch(e){pendingHandle=h}
 }
+function setRoot(h){root=child(null,h.name,{h,path:''});stack=[root];readOnly=false;pendingHandle=null;H=null;bakDone=false}
 async function reconnect(){
-  if(pendingHandle){
-    picking=true;setTimeout(()=>picking=false,4000);
-    try{if(await pendingHandle.requestPermission({mode:'readwrite'})==='granted'){root=child(null,pendingHandle.name,{h:pendingHandle,path:''});stack=[root];pendingHandle=null;return render()}}catch(e){}
-  }
+  if(pendingHandle){setPicking(true,4000);
+    try{if(await pendingHandle.requestPermission({mode:'readwrite'})==='granted'){setRoot(pendingHandle);return render()}}catch(e){}}
   pickVault();
 }
 async function pickVault(){
-  if(!hasFSA){picking=true;$('#roInput').click();return}
-  let h;picking=true;
-  try{h=await window.showDirectoryPicker({id:'vault',mode:'readwrite'})}catch(e){return}
-  finally{setTimeout(()=>picking=false,800)}
-  root=child(null,h.name,{h,path:''});stack=[root];readOnly=false;pendingHandle=null;
-  try{await kvSet('root',h)}catch(e){}
+  if(!hasFSA){setPicking(true);$('#roInput').click();return}
+  let h;setPicking(true);
+  try{h=await window.showDirectoryPicker({id:'vault',mode:'readwrite'})}catch(e){setPicking(false);return}
+  setTimeout(()=>setPicking(false),800);
+  setRoot(h);try{await kvSet('root',h)}catch(e){}
   if(!await hasNomedia(root)){
     if(confirm('"'+h.name+'" has no .nomedia file.\n\nCreate one now? This hides everything in this folder (and its subfolders) from gallery and music apps.\n\nWithout it, saving into the vault is blocked.')){
       try{await makeNomedia(root);vToast('.nomedia created ✓')}catch(e){vToast('Could not create .nomedia: '+e.message)}
@@ -512,34 +645,34 @@ async function pickVault(){
   }
   render();
 }
-// read-only fallback for browsers without the folder API
 $('#roInput').addEventListener('change',e=>{
-  picking=false;const files=[...e.target.files];e.target.value='';if(!files.length)return;
+  setPicking(false);const files=[...e.target.files];e.target.value='';if(!files.length)return;
   const top=(files[0].webkitRelativePath||'').split('/')[0]||'Folder';
   const r={name:top,path:'',kids:new Map(),parent:null};
   for(const f of files){
     const parts=(f.webkitRelativePath||f.name).split('/').slice(1);let d=r;
     for(let i=0;i<parts.length-1;i++){let n=d.kids.get(parts[i]);if(!n){n=child(d,parts[i],{kids:new Map()});d.kids.set(parts[i],n)}d=n}
-    const nm=parts[parts.length-1];d.kids.set(nm,child(d,nm,{file:f,dir:d}));
+    const nm=parts[parts.length-1];d.kids.set(nm,child(d,nm,{file:f,dir:d,k:kindOf(nm)}));
   }
-  root=r;stack=[r];readOnly=true;render();
+  root=r;stack=[r];readOnly=true;H=null;render();
 });
-$('#roInput').addEventListener('cancel',()=>picking=false);
+$('#roInput').addEventListener('cancel',()=>setPicking(false));
 
 /* Every write passes through this. No .nomedia at the vault root → nothing is written. */
 async function writeGuard(d){
-  if(readOnly||!d.h){vToast('This browser can only read folders.\nAdding needs Chrome on Android 132+.');return false}
+  if(readOnly||!d||!d.h){vToast('This browser can only read folders.\nSaving needs Chrome on Android 132+.');return false}
   if(!await hasNomedia(root)){
-    sheet('Vault root has no .nomedia',[{label:'Create .nomedia now',fn:async()=>{await makeNomedia(root);vToast('.nomedia created ✓ — try again');render()}}]);
+    sheet('Vault root has no .nomedia',[{label:'Create .nomedia now',fn:async()=>{await makeNomedia(root);vToast('.nomedia created ✓, try again');render()}}]);
     return false;
   }
-  if(d!==root&&!await hasNomedia(d)){try{await makeNomedia(d)}catch(e){}}// belt and suspenders
+  if(d!==root&&!await hasNomedia(d)){try{await makeNomedia(d)}catch(e){}}
   return true;
 }
-const cleanName=n=>(n||'').replace(/[\\/:*?"<>|\u0000-\u001f]/g,'_').replace(/^\.+/,'').trim().slice(0,150)||'video';
-function withExt(name,type){if(VIDEO_RE.test(name))return name;const m={'video/webm':'.webm','video/quicktime':'.mov','video/x-matroska':'.mkv','video/3gpp':'.3gp'};return name+(m[type]||'.mp4')}
+const cleanName=n=>(n||'').replace(/[\\/:*?"<>|\u0000-\u001f]/g,'_').replace(/^\.+/,'').trim().slice(0,150)||'file';
+function withExt(name,type){if(kindOf(name))return name;const m={'video/webm':'.webm','video/quicktime':'.mov','video/x-matroska':'.mkv','video/3gpp':'.3gp','image/png':'.png','image/webp':'.webp','image/gif':'.gif','image/jpeg':'.jpg'};return name+(m[type]||((type||'').startsWith('image/')?'.jpg':'.mp4'))}
 async function exists(d,name){try{await d.h.getFileHandle(name);return true}catch(e){try{await d.h.getDirectoryHandle(name);return true}catch(e2){return false}}}
 async function uniqueName(d,name){if(!await exists(d,name))return name;const i=name.lastIndexOf('.'),b=i>0?name.slice(0,i):name,x=i>0?name.slice(i):'';for(let n=2;n<999;n++){const c=b+' ('+n+')'+x;if(!await exists(d,c))return c}return b+'-'+Date.now()+x}
+async function writeDirect(dh,name,data){const fh=await dh.getFileHandle(name,{create:true});const w=await fh.createWritable();await w.write(data);await w.close()}
 async function writeFile(d,name,blob,onp){
   const tmp=canMove?'.'+name+'.part':name;
   const fh=await d.h.getFileHandle(tmp,{create:true});
@@ -550,29 +683,115 @@ async function writeFile(d,name,blob,onp){
   catch(err){try{await w.abort()}catch(e){}try{await d.h.removeEntry(tmp)}catch(e){}throw err}
   if(canMove){
     try{await fh.move(name)}
-    catch(e){// move unsupported here: write directly instead
-      try{await d.h.removeEntry(tmp)}catch(x){}
-      const f2=await d.h.getFileHandle(name,{create:true});const w2=await f2.createWritable();await blob.stream().pipeTo(w2);
-    }
+    catch(e){try{await d.h.removeEntry(tmp)}catch(x){}const f2=await d.h.getFileHandle(name,{create:true});const w2=await f2.createWritable();await blob.stream().pipeTo(w2)}
   }
 }
-async function saveItems(items){// items: [{name,blob}]
-  const d=stack[stack.length-1];
+async function subdir(d,name){const h=await d.h.getDirectoryHandle(name,{create:true});return child(d,name,{h})}
+function progressToast(i,n){const t=$('#vToast');clearTimeout(vToastT);t.innerHTML='Saving '+(i+1)+'/'+n+'<div class="prog"><i></i></div>';t.classList.add('on');const bar=t.querySelector('i');return p=>bar.style.width=(p*100).toFixed(1)+'%'}
+async function saveItems(items,d){// into a Files folder
+  d=d||stack[stack.length-1];
   if(!await writeGuard(d))return false;
-  const t=$('#vToast');let ok=0;
+  let ok=0;
   for(let i=0;i<items.length;i++){
     const it=items[i];
     const name=await uniqueName(d,withExt(cleanName(it.name),it.blob.type));
-    t.innerHTML='Saving '+(i+1)+'/'+items.length+'<div class="prog"><i></i></div>';t.classList.add('on');
-    const bar=t.querySelector('i');
-    try{await writeFile(d,name,it.blob,p=>{bar.style.width=(p*100).toFixed(1)+'%'});ok++}
+    try{await writeFile(d,name,it.blob,progressToast(i,items.length));ok++}
     catch(e){vToast('Failed: '+it.name+'\n'+(e.message||e),4000);await new Promise(r=>setTimeout(r,1500))}
   }
-  vToast(ok+' video'+(ok!==1?'s':'')+' saved to '+(d.name||'vault'));
+  vToast(ok+' file'+(ok!==1?'s':'')+' saved to '+(d.name||'vault'));
   render();return ok===items.length;
 }
 
-/* ═════════════════════ VAULT: UI ═════════════════════ */
+/* ═════════════════════ HUB DATA (journal + items) ═════════════════════
+   Stored in the vault folder at /.hub/data.json (plus /.hub/media/YYYY-MM/…).
+   .hub is a hidden dot-folder AND gets its own .nomedia.                    */
+const DEF_CATS=[{id:'people',name:'People',icon:'👤'},{id:'places',name:'Places',icon:'📍'},{id:'things',name:'Things',icon:'📦'},{id:'media',name:'Shows & media',icon:'🎬'},{id:'moments',name:'Moments',icon:'⭐'}];
+let H=null,bakDone=false,hubWarned=false;
+const newHub=()=>({v:1,posts:{},items:{},cats:DEF_CATS.map(c=>Object.assign({},c))});
+async function hubDir(){const d=await subdir(root,'.hub');if(!await hasNomedia(d))await makeNomedia(d);return d}
+async function loadHub(){
+  if(!root)return;
+  let data=null;
+  if(root.h){try{const d=await root.h.getDirectoryHandle('.hub');data=JSON.parse(await (await (await d.getFileHandle('data.json')).getFile()).text())}catch(e){}}
+  if(!data){let c=null;try{c=await kvGet('hub')}catch(e){}if(c&&c.posts){data=c;if(root.h&&!readOnly)setTimeout(()=>saveHub(true),50)}}
+  H=data||newHub();
+  H.posts=H.posts||{};H.items=H.items||{};if(!Array.isArray(H.cats)||!H.cats.length)H.cats=DEF_CATS.slice();
+}
+let saveT;
+function saveHub(now){kvSet('hub',H).catch(()=>{});clearTimeout(saveT);saveT=setTimeout(writeHub,now?0:400)}
+async function writeHub(){
+  if(!root||!root.h||readOnly)return;
+  try{
+    if(!await hasNomedia(root)){if(!hubWarned){hubWarned=true;vToast('Journal kept in browser only: add .nomedia to the vault to save it there',4000)}return}
+    const d=await hubDir();
+    if(!bakDone){bakDone=true;try{const old=await (await d.h.getFileHandle('data.json')).getFile();if(old.size)await writeDirect(d.h,'data.bak.json',old)}catch(e){}}
+    await writeDirect(d.h,'data.json',JSON.stringify(H));
+  }catch(e){vToast('Journal save failed: '+(e.message||e),4000)}
+}
+async function storeMedia(blobs,ds){// → refs
+  if(!await writeGuard(root))return null;
+  const hub=await hubDir(),md=await subdir(hub,'media'),ym=await subdir(md,(ds||today()).slice(0,7));
+  const refs=[];
+  for(let i=0;i<blobs.length;i++){
+    const b=blobs[i],k=kindOfBlob(b)||'i',orig=b.name||'';
+    const ext=(orig.match(/\.[a-z0-9]{2,5}$/i)||[''])[0]||withExt('x',b.type).slice(1);
+    const name=uid()+ext.toLowerCase();
+    await writeFile(ym,name,b,progressToast(i,blobs.length));
+    refs.push({p:ym.path+'/'+name,k,n:orig||name});
+  }
+  $('#vToast').classList.remove('on');
+  return refs;
+}
+const postsSorted=()=>Object.values(H.posts).sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
+function postsByDate(){const m={};postsSorted().forEach(p=>(m[p.date]=m[p.date]||[]).push(p));return m}
+const itemPosts=id=>postsSorted().filter(p=>(p.items||[]).includes(id)).reverse();
+const cat=id=>H.cats.find(c=>c.id===id)||{id:'',name:'Uncategorized',icon:'🏷️'};
+function updateRefs(oldP,newP){// keep journal links working after rename/move in Files
+  if(!H)return;let ch=false;
+  const fix=r=>{if(r&&r.p===oldP){r.p=newP;r.n=newP.split('/').pop();ch=true}};
+  Object.values(H.posts).forEach(p=>(p.media||[]).forEach(fix));Object.values(H.items).forEach(i=>fix(i.cover));
+  if(ch)saveHub();
+}
+
+/* ═════════════════════ THUMBNAILS (browser storage only) ═════════════════════ */
+const thumbQ=[];let thumbBusy=0;
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){io.unobserve(e.target);thumbQ.push(e.target);pumpThumbs()}}),{rootMargin:'300px'});
+function lazyThumb(elm,src){elm._src=src;io.observe(elm)}
+async function pumpThumbs(){if(thumbBusy>=2)return;thumbBusy++;while(thumbQ.length){const c=thumbQ.shift();if(!c.isConnected||locked)continue;try{await makeThumb(c)}catch(e){}}thumbBusy--}
+async function makeThumb(elm){
+  const s=elm._src;let f;
+  try{f=await fileOf(s)}catch(e){elm.classList.add('missing');elm.textContent='missing';return}
+  const key=srcPath(s)+'|'+f.size+'|'+f.lastModified;
+  let t=null;try{t=await thGet(key)}catch(e){}
+  if(!t){t=srcKind(s)==='i'?await imgThumb(f):await grabFrame(f);if(t)thSet(key,t).catch(()=>{})}
+  if(!t||!elm.isConnected)return;
+  elm.style.backgroundImage='url('+t.img+')';elm.classList.add('loaded');
+  if(t.dur&&elm.dataset.dur!==undefined)elm.append(el('span','dur',fmt(t.dur)));
+}
+async function imgThumb(f){
+  try{
+    let bmp;try{bmp=await createImageBitmap(f,{resizeWidth:360,resizeQuality:'medium'})}catch(e){bmp=await createImageBitmap(f)}
+    const w=360,h=Math.round(w*bmp.height/bmp.width)||360,c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(bmp,0,0,w,h);bmp.close&&bmp.close();
+    return{img:c.toDataURL('image/jpeg',0.7)};
+  }catch(e){return null}
+}
+function grabFrame(file){return new Promise(res=>{
+  const u=URL.createObjectURL(file),v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='metadata';
+  let done=false;const fin=r=>{if(done)return;done=true;clearTimeout(t);v.removeAttribute('src');v.load();URL.revokeObjectURL(u);res(r)};
+  const t=setTimeout(()=>fin(null),9000);
+  v.onloadedmetadata=()=>{v.currentTime=Math.min(2,(v.duration||4)*0.15)};
+  v.onseeked=()=>{try{const w=320,h=Math.round(w*((v.videoHeight/v.videoWidth)||0.5625));const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(v,0,0,w,h);fin({img:c.toDataURL('image/jpeg',0.62),dur:v.duration})}catch(e){fin(null)}};
+  v.onerror=()=>fin(null);v.src=u;
+})}
+function mediaTile(src,opts){// square tile for journal media
+  const k=srcKind(src),m=el('div','mt',k==='v'?'🎬':'🖼');
+  if(k==='v'){m.append(el('span','vbadge','▶'));m.dataset.dur=''}
+  lazyThumb(m,src);
+  if(opts&&opts.onclick)m.onclick=opts.onclick;
+  return m;
+}
+
+/* ═════════════════════ UI helpers ═════════════════════ */
 let vToastT;
 function vToast(msg,ms=2500){const t=$('#vToast');t.textContent=msg;t.classList.add('on');clearTimeout(vToastT);vToastT=setTimeout(()=>t.classList.remove('on'),ms)}
 function sheet(title,items,extra){
@@ -583,111 +802,391 @@ function sheet(title,items,extra){
   const c=el('button','sh-b cancel',extra?'Done':'Cancel');c.onclick=()=>bg.remove();box.append(c);
   bg.addEventListener('click',e=>{if(e.target===bg)bg.remove()});bg.append(box);document.body.append(bg);return box;
 }
+const panels=[];
+function openPanel(title,build,opt){
+  opt=opt||{};
+  const p=el('div','panel'),hd=el('div','ph'),back=el('button','back','‹'),h2=el('h2','',esc(title)),acts=el('div','row2'),body=el('div','pb'),foot=el('div','pf hidden');
+  hd.append(back,h2,acts);p.append(hd,body,foot);document.body.append(p);
+  const P={el:p,body,acts,foot,closed:false,setTitle:t=>h2.textContent=t,
+    close(fromPop){if(P.closed)return;P.closed=true;p.remove();const i=panels.indexOf(P);if(i>-1)panels.splice(i,1);opt.onclose&&opt.onclose();if(!fromPop)popOverlay()},
+    refresh(){const y=body.scrollTop;acts.innerHTML='';foot.innerHTML='';foot.classList.add('hidden');body.innerHTML='';build(P);body.scrollTop=y}};
+  back.onclick=()=>P.close(false);
+  pushOverlay(()=>P.close(true));panels.push(P);P.refresh();return P;
+}
+function refreshAll(){panels.slice().forEach(p=>{if(!p.noAutoRefresh)p.refresh()});render()}
+function pickPhoneMedia(cb){const i=$('#mediaInput');i.value='';i.onchange=()=>{setPicking(false);const f=[...i.files];i.value='';if(f.length)cb(f)};i.oncancel=()=>setPicking(false);setPicking(true);i.click()}
+
+/* ═════════════════════ VAULT SHELL ═════════════════════ */
+document.querySelectorAll('#tabbar button').forEach(b=>b.onclick=()=>{cfg.tab=b.dataset.tab;saveCfg();$('#vMain').scrollTop=0;render()});
+$('#fab').onclick=()=>{if(!H)return;openEditor(null,{date:today()})};
 let renderTok=0;
 async function render(){
+  if(locked)return;
   const tok=++renderTok,main=$('#vMain');
-  $('#vbar').classList.toggle('hidden',!root);
+  document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.tab===cfg.tab));
+  $('#fab').classList.toggle('hidden',!root||cfg.tab==='files'||readOnly);
   if(!root){
-    $('#crumbs').innerHTML='';
     main.innerHTML='';
     const c=el('div','banner'+(pendingHandle?'':' warn'));
-    if(pendingHandle){c.innerHTML='Tap to reconnect <b>'+esc(pendingHandle.name)+'</b>. Android asks for folder access again after a restart.<div class="bb"><button class="sbtn" id="rc">🔓 Reconnect vault</button><button class="sbtn" id="pk">Pick another folder</button></div>'}
-    else{c.innerHTML=(hasFSA?'<b>Choose your vault folder.</b> Use a folder <i>inside</i> Movies, Documents, etc. (for example <code>Movies/Vault</code>), not the top-level folder itself. Android ignores .nomedia at the top of standard folders.':'<b>Read-only mode.</b> This browser can\'t write to folders, so you can play and use the puzzle, but adding videos won\'t work.')+'<div class="bb"><button class="sbtn" id="pk">📂 '+(hasFSA?'Choose vault folder':'Open folder')+'</button></div>'}
+    if(pendingHandle){c.innerHTML='Tap to reconnect <b>'+esc(pendingHandle.name)+'</b>. Android asks for folder access again after a restart.<div class="bb"><button class="sbtn g" id="rc">🔓 Reconnect vault</button><button class="sbtn" id="pk">Pick another folder</button></div>'}
+    else{c.innerHTML=(hasFSA?'<b>Choose your vault folder.</b> Journal, items and files all live inside it. Use a folder <i>inside</i> Movies, Documents, etc. (for example <code>Documents/Vault</code>), not the top-level folder itself. Android ignores .nomedia at the top of standard folders.':'<b>Read-only mode.</b> This browser can\'t write to folders.')+'<div class="bb"><button class="sbtn g" id="pk">📂 '+(hasFSA?'Choose vault folder':'Open folder')+'</button></div>'}
     main.append(c);
     const rc=c.querySelector('#rc');if(rc)rc.onclick=reconnect;
     c.querySelector('#pk').onclick=pickVault;
     return;
   }
-  // crumbs
-  const cr=$('#crumbs');cr.innerHTML='';
-  stack.forEach((d,i)=>{if(i)cr.append(el('span','sep','›'));const b=el('button','',esc(i?d.name:'🏠 '+d.name));b.onclick=()=>{stack=stack.slice(0,i+1);render()};cr.append(b)});
-  main.innerHTML='<div class="empty">Loading…</div>';
-  const d=stack[stack.length-1];
-  let res;try{res=await listDir(d)}catch(e){main.innerHTML='<div class="empty">Could not read this folder.<br>'+esc(e.message||e)+'</div>';return}
-  if(tok!==renderTok)return;
-  curDirs=res.dirs;curVids=res.vids;
-  main.innerHTML='';
-  // warnings / incoming shares
-  if(!readOnly&&d===root){
-    if(!await hasNomedia(root)){const w=el('div','banner warn','⚠️ <b>No .nomedia in this vault.</b> Gallery apps may show these videos, and saving is blocked until you add one.<div class="bb"><button class="sbtn">Create .nomedia</button></div>');w.querySelector('button').onclick=async()=>{await makeNomedia(root);render()};main.append(w)}
-    if(STD_ROOTS.test(root.name))main.append(el('div','banner warn','⚠️ "'+esc(root.name)+'" looks like a top-level system folder. Android may ignore .nomedia there, so pick a subfolder inside it instead (Settings → Change folder).'));
-  }
+  if(!H){main.innerHTML='<div class="empty">Loading…</div>';await loadHub();if(tok!==renderTok)return}
+  const y=main.scrollTop;
+  if(cfg.tab==='files')await renderFiles(main,tok);
+  else{main.innerHTML='';if(cfg.tab==='items')renderItems(main);else await renderCal(main)}
+  if(tok===renderTok)main.scrollTop=y;
+}
+
+/* ─────────── JOURNAL (calendar) ─────────── */
+let calY=new Date().getFullYear(),calM=new Date().getMonth();
+async function renderCal(main){
+  if(!readOnly&&root.h&&!await hasNomedia(root))main.append(nomediaBanner());
   await showIncoming(main);
-  if(!curDirs.length&&!curVids.length){main.append(el('div','empty','Empty folder.<br>Tap <b>＋ Add videos</b>, or share videos to this app from your gallery.'));return}
-  const g=el('div','vgrid');
-  curDirs.forEach(sd=>{
-    const c=el('div','vc dir','<div class="th">📁</div><div class="nm">'+esc(sd.name)+'</div><button class="more">⋯</button>');
-    c.onclick=e=>{if(e.target.classList.contains('more'))return dirMenu(sd);stack.push(sd);render()};
-    g.append(c);
-  });
-  curVids.forEach((v,i)=>{
-    const c=el('div','vc','<div class="th">▶</div><div class="nm">'+esc(v.name)+'</div><button class="more">⋯</button>');
-    c._v=v;
-    c.onclick=e=>{if(e.target.classList.contains('more'))return vidMenu(v,i);openPlayer(curVids,i,false)};
-    let lp,fired=false;c.addEventListener('touchstart',()=>{fired=false;lp=setTimeout(()=>{fired=true;vidMenu(v,i)},550)},{passive:true});
-    c.addEventListener('touchend',e=>{clearTimeout(lp);if(fired)e.preventDefault()});
-    c.addEventListener('touchmove',()=>clearTimeout(lp),{passive:true});
-    g.append(c);io.observe(c);
-  });
-  main.append(g);
-}
-
-/* thumbnails (kept in browser storage only, never written to a folder) */
-const thumbQ=[];let thumbBusy=false;
-const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){io.unobserve(e.target);thumbQ.push(e.target);pumpThumbs()}}),{rootMargin:'300px'});
-async function pumpThumbs(){if(thumbBusy)return;thumbBusy=true;while(thumbQ.length){const c=thumbQ.shift();if(!c.isConnected||locked)continue;try{await makeThumb(c)}catch(e){}}thumbBusy=false}
-async function makeThumb(card){
-  const v=card._v,f=await fileOf(v);
-  const key=v.path+'|'+f.size+'|'+f.lastModified;
-  let t=null;try{t=await thGet(key)}catch(e){}
-  if(!t){t=await grabFrame(f);if(t)thSet(key,t).catch(()=>{})}
-  if(!t||!card.isConnected)return;
-  const th=card.querySelector('.th');th.style.backgroundImage='url('+t.img+')';th.textContent='';
-  if(t.dur)card.append(el('span','dur',fmt(t.dur)));
-}
-function grabFrame(file){return new Promise(res=>{
-  const u=URL.createObjectURL(file),v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='metadata';
-  let done=false;const fin=r=>{if(done)return;done=true;clearTimeout(t);v.removeAttribute('src');v.load();URL.revokeObjectURL(u);res(r)};
-  const t=setTimeout(()=>fin(null),9000);
-  v.onloadedmetadata=()=>{v.currentTime=Math.min(2,(v.duration||4)*0.15)};
-  v.onseeked=()=>{try{const w=320,h=Math.round(w*((v.videoHeight/v.videoWidth)||0.5625));const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(v,0,0,w,h);fin({img:c.toDataURL('image/jpeg',0.62),dur:v.duration})}catch(e){fin(null)}};
-  v.onerror=()=>fin(null);v.src=u;
-})}
-
-/* item menus */
-function vidMenu(v,i){
-  const items=[{label:'▶ Play',fn:()=>openPlayer(curVids,i,false)},{label:'🧩 Slide puzzle',fn:()=>openPuzzle([v],0)}];
-  if(!readOnly){
-    if(canMove){items.push({label:'✏️ Rename',fn:()=>renameVid(v)},{label:'📦 Move to…',fn:()=>moveMenu(v)})}
-    items.push({label:'🗑 Delete',danger:true,fn:async()=>{if(!confirm('Delete "'+v.name+'"?\nThis permanently removes the file.'))return;try{await v.dir.h.removeEntry(v.name);vToast('Deleted')}catch(e){vToast('Delete failed: '+e.message)}render()}});
+  await showInbox(main);
+  const first=new Date(calY,calM,1),days=new Date(calY,calM+1,0).getDate(),start=first.getDay(),pre=calY+'-'+pad(calM+1)+'-';
+  const byDay=postsByDate();
+  const monthDays=Object.keys(byDay).filter(d=>d.startsWith(pre)).sort();
+  let nPosts=0,nMedia=0;monthDays.forEach(d=>byDay[d].forEach(p=>{nPosts++;nMedia+=(p.media||[]).length}));
+  // On this day (earlier years)
+  const md=today().slice(5),otd=Object.keys(byDay).filter(d=>d.slice(5)===md&&d!==today());
+  if(otd.length&&calY===new Date().getFullYear()&&calM===new Date().getMonth()){
+    otd.sort().reverse().forEach(d=>{const p=byDay[d][0];const c=el('div','otd','✨ <b>On this day, '+d.slice(0,4)+'</b> · '+esc((p.text||'').slice(0,90)||((p.media||[]).length+' photo/video'+((p.media||[]).length!==1?'s':''))));c.onclick=()=>openDay(d);main.append(c)});
   }
-  sheet(v.name,items);
+  const h=el('div','cal-h');
+  const pv=el('button','sbtn','‹'),nx=el('button','sbtn','›'),t=el('h2','',esc(first.toLocaleDateString(undefined,{month:'long',year:'numeric'})));
+  pv.onclick=()=>{calM--;if(calM<0){calM=11;calY--}render()};nx.onclick=()=>{calM++;if(calM>11){calM=0;calY++}render()};
+  h.append(pv,t,nx);main.append(h);
+  const chips=el('div','chips');
+  const tb=el('button','chip','Today');tb.onclick=()=>{calY=new Date().getFullYear();calM=new Date().getMonth();render()};
+  const wr=el('button','chip on','✍️ Write today');wr.onclick=()=>openEditor(null,{date:today()});
+  const ad=el('button','chip','📷 Add screenshots');ad.onclick=()=>pickPhoneMedia(async f=>{const refs=await storeMedia(f,today());if(refs){addPost({date:today(),time:nowTime(),text:'',media:refs,items:[]});vToast(refs.length+' added to today')}});
+  chips.append(wr,ad,tb);main.append(chips);
+  main.append(el('div','stat-row','<div class="stat"><b>'+nPosts+'</b><span>entries</span></div><div class="stat"><b>'+nMedia+'</b><span>photos & videos</span></div><div class="stat"><b>'+monthDays.length+'</b><span>days logged</span></div>'));
+  const g=el('div','cal-grid');
+  ['S','M','T','W','T','F','S'].forEach(d=>g.append(el('div','cal-dow',d)));
+  for(let i=0;i<start;i++)g.append(el('div'));
+  const td=today();
+  for(let d=1;d<=days;d++){
+    const ds=pre+pad(d),ps=byDay[ds]||[],media=[].concat(...ps.map(p=>p.media||[]));
+    const c=el('div','cal-cell'+(ps.length?' has':'')+(ds===td?' today':''),'<span class="dn">'+d+'</span>');
+    if(media.length){
+      const n=Math.min(4,media.length),th=el('div','cal-th n'+n);
+      media.slice(0,4).forEach(m=>{const i=el('i');lazyThumb(i,m);th.append(i)});
+      c.append(th);if(media.length>4)c.append(el('span','cal-more','+'+(media.length-4)));
+    }else if(ps.length)c.append(el('span','cal-dot'));
+    c.onclick=()=>openDay(ds);
+    g.append(c);
+  }
+  main.append(g);
+  if(monthDays.length){
+    main.append(el('div','lbl','This month'));
+    monthDays.slice().reverse().forEach(ds=>{
+      const ps=byDay[ds],media=[].concat(...ps.map(p=>p.media||[])),txt=ps.map(p=>p.text).filter(Boolean).join(' · ');
+      const li=el('div','li','<div class="tn">📝</div><div class="grow"><div class="t">'+esc(shortDate(ds))+'</div><div class="s">'+esc(txt||(media.length+' photo/video'+(media.length!==1?'s':'')))+'</div></div><span style="color:#8b90a0;font-size:12px">'+ps.length+'</span>');
+      if(media[0]){const tn=li.querySelector('.tn');tn.textContent='';lazyThumb(tn,media[0])}
+      li.onclick=()=>openDay(ds);main.append(li);
+    });
+  }else main.append(el('div','empty','<div class="big">📅</div>Nothing logged this month.<br>Tap <b>✍️ Today</b> to write a reflection or add screenshots.'));
+}
+function nomediaBanner(){const w=el('div','banner warn','⚠️ <b>No .nomedia in this vault.</b> Gallery apps may show its contents, and saving is blocked until you add one.<div class="bb"><button class="sbtn">Create .nomedia</button></div>');w.querySelector('button').onclick=async()=>{await makeNomedia(root);render()};return w}
+function addPost(p){p.id=p.id||uid();p.created=p.created||Date.now();p.updated=Date.now();H.posts[p.id]=p;saveHub();refreshAll();return p}
+
+function postCard(p,P){
+  const c=el('div','post');
+  const hd=el('div','post-h','<span class="tm">'+esc(p.time||'')+'</span>');
+  if(!readOnly){const e=el('button','sbtn','Edit');e.onclick=()=>openEditor(p);hd.append(e)}
+  c.append(hd);
+  if(p.text)c.append(el('div','post-txt',esc(p.text)));
+  if((p.media||[]).length){const g=el('div','mgrid');p.media.forEach((m,i)=>g.append(mediaTile(m,{onclick:()=>openViewer(p.media,i)})));c.append(g)}
+  if((p.items||[]).length){const t=el('div','tags');p.items.forEach(id=>{const it=H.items[id];if(!it)return;const b=el('span','tag',cat(it.cat).icon+' '+esc(it.name));b.onclick=()=>openItem(id);t.append(b)});c.append(t)}
+  return c;
+}
+function openDay(ds){
+  const DP=openPanel(longDate(ds),P=>{
+    const ps=postsByDate()[ds]||[];
+    if(!readOnly){const a=el('button','sbtn g','＋');a.onclick=()=>openEditor(null,{date:ds});P.acts.append(a)}
+    if(!ps.length)P.body.append(el('div','empty','<div class="big">📝</div>No entries for this day yet.'));
+    ps.forEach(p=>P.body.append(postCard(p,P)));
+    if(!readOnly){
+      P.foot.classList.remove('hidden');
+      const w=el('button','sbtn g','✍️ Write');w.onclick=()=>openEditor(null,{date:ds});
+      const s=el('button','sbtn','📷 Add screenshots');s.onclick=()=>pickPhoneMedia(async f=>{const refs=await storeMedia(f,ds);if(refs)addPost({date:ds,time:nowTime(),text:'',media:refs,items:[]})});
+      P.foot.append(w,s);
+    }
+  });
+  DP.dayView=ds;
+}
+
+/* entry editor */
+function openEditor(post,defs){
+  if(readOnly)return vToast('Read-only mode');
+  const isNew=!post;
+  const d=post?JSON.parse(JSON.stringify(post)):Object.assign({date:today(),time:nowTime(),text:'',media:[],items:[]},defs||{});
+  const staged=[];// {blob,url}
+  let dirty=false;
+  const P=openPanel(isNew?'New entry':'Edit entry',P=>{
+    const r=el('div','row2');
+    const di=el('input','in');di.type='date';di.value=d.date;di.onchange=()=>{d.date=di.value||d.date;dirty=true};
+    const ti=el('input','in');ti.type='time';ti.value=d.time||'';ti.onchange=()=>{d.time=ti.value;dirty=true};ti.style.flex='0 0 120px';
+    r.append(di,ti);P.body.append(r);
+    P.body.append(el('div','lbl','Reflection'));
+    const ta=el('textarea','fld');ta.placeholder='What happened today? How did it feel?';ta.value=d.text||'';ta.oninput=()=>{d.text=ta.value;dirty=true};P.body.append(ta);
+    P.body.append(el('div','lbl','Screenshots, photos & videos'));
+    const g=el('div','mgrid');
+    d.media.forEach((m,i)=>{const t=mediaTile(m);const x=el('button','rm','✕');x.onclick=e=>{e.stopPropagation();d.media.splice(i,1);dirty=true;P.refresh()};t.append(x);t.onclick=()=>openViewer(d.media,i);g.append(t)});
+    staged.forEach((s,i)=>{const t=el('div','mt',kindOfBlob(s.blob)==='v'?'🎬':'');if(kindOfBlob(s.blob)!=='v')t.style.backgroundImage='url('+s.url+')';t.append(el('span','vbadge','new'));const x=el('button','rm','✕');x.onclick=()=>{URL.revokeObjectURL(s.url);staged.splice(i,1);P.refresh()};t.append(x);g.append(t)});
+    P.body.append(g);
+    const mb=el('div','row2');mb.style.marginTop='8px';
+    const fp=el('button','sbtn','📷 From phone');fp.onclick=()=>pickPhoneMedia(f=>{f.forEach(b=>staged.push({blob:b,url:URL.createObjectURL(b)}));dirty=true;P.refresh()});
+    const fv=el('button','sbtn','📁 From vault');fv.onclick=()=>openFilePicker(refs=>{d.media.push(...refs);dirty=true;P.refresh()});
+    mb.append(fp,fv);P.body.append(mb);
+    if(staged.length)P.body.append(el('div','',`<p style="font-size:11px;color:#8b90a0;margin-top:6px">New files are copied into the vault when you save. The originals stay in your gallery, so delete them there if you want them gone.</p>`));
+    P.body.append(el('div','lbl','Items'));
+    const tg=el('div','tags');
+    d.items.forEach((id,i)=>{const it=H.items[id];if(!it)return;const b=el('span','tag',cat(it.cat).icon+' '+esc(it.name)+' ✕');b.onclick=()=>{d.items.splice(i,1);dirty=true;P.refresh()};tg.append(b)});
+    const ab=el('span','tag','＋ Tag item');ab.style.background='#1d2a1c';ab.onclick=()=>openItemPicker(d.items,ids=>{d.items=ids;dirty=true;P.refresh()});tg.append(ab);
+    P.body.append(tg);
+    P.foot.classList.remove('hidden');
+    if(!isNew){const del=el('button','sbtn red','Delete');del.style.flex='0 0 auto';del.onclick=()=>{if(!confirm('Delete this entry? (Attached files stay in the vault.)'))return;delete H.posts[post.id];saveHub();P.noAutoRefresh=true;P.close(false);setTimeout(refreshAll,50)};P.foot.append(del)}
+    const sv=el('button','sbtn g','Save');sv.onclick=async()=>{
+      if(!d.text.trim()&&!d.media.length&&!staged.length&&!d.items.length)return vToast('Write something or add a photo first');
+      sv.disabled=true;sv.textContent='Saving…';
+      if(staged.length){const refs=await storeMedia(staged.map(s=>s.blob),d.date);if(!refs){sv.disabled=false;sv.textContent='Save';return}d.media.push(...refs);staged.forEach(s=>URL.revokeObjectURL(s.url));staged.length=0}
+      dirty=false;P.noAutoRefresh=true;P.close(false);
+      setTimeout(()=>{addPost(Object.assign(post||{},d));if(isNew&&!panels.some(x=>x.dayView===d.date))openDay(d.date)},60);
+    };
+    P.foot.append(sv);
+  });
+  P.noAutoRefresh=true;
+}
+
+/* ─────────── ITEMS ─────────── */
+let iq='',icat='all',isort='recent';
+function itemCards(list,onclick,selected){
+  const g=el('div','igrid');
+  const counts={};Object.values(H.posts).forEach(p=>(p.items||[]).forEach(id=>counts[id]=(counts[id]||0)+1));
+  list.forEach(it=>{
+    const c=el('div','ic2'+(selected&&selected.includes(it.id)?' sel':''),'<div class="th">'+cat(it.cat).icon+'</div><div class="nm">'+esc(it.name)+'</div>'+(counts[it.id]?'<span class="cnt">'+counts[it.id]+'</span>':''));
+    if(it.cover)lazyThumb(c.querySelector('.th'),it.cover);
+    c.onclick=()=>onclick(it,c);g.append(c);
+  });
+  return{g,counts};
+}
+function filteredItems(q,cid,sort){
+  const counts={},last={};Object.values(H.posts).forEach(p=>(p.items||[]).forEach(id=>{counts[id]=(counts[id]||0)+1;if(!last[id]||p.date>last[id])last[id]=p.date}));
+  let l=Object.values(H.items).filter(it=>(cid==='all'||it.cat===cid)&&(!q||it.name.toLowerCase().includes(q.toLowerCase())));
+  if(sort==='name')l.sort((a,b)=>a.name.localeCompare(b.name));
+  else if(sort==='most')l.sort((a,b)=>(counts[b.id]||0)-(counts[a.id]||0));
+  else l.sort((a,b)=>(last[b.id]||'0'+b.created).localeCompare(last[a.id]||'0'+a.created));
+  return l;
+}
+function catChips(curId,onpick){
+  const ch=el('div','chips');
+  [{id:'all',name:'All',icon:''}].concat(H.cats).forEach(c=>{const b=el('button','chip'+(curId===c.id?' on':''),(c.icon?c.icon+' ':'')+esc(c.name));b.onclick=()=>onpick(c.id);ch.append(b)});
+  return ch;
+}
+function renderItems(main){
+  const r=el('div','row2');r.style.marginBottom='8px';
+  const s=el('input','in');s.placeholder='Search items…';s.value=iq;
+  s.oninput=()=>{iq=s.value;clearTimeout(s._t);s._t=setTimeout(()=>{renderItemsGrid()},200)};
+  const so=el('select','in','<option value="recent">Recent</option><option value="most">Most logged</option><option value="name">A–Z</option>');so.value=isort;so.onchange=()=>{isort=so.value;renderItemsGrid()};
+  const nb=el('button','sbtn g','＋ New');nb.onclick=()=>openItemEditor(null);
+  r.append(s,so);if(!readOnly)r.append(nb);main.append(r);
+  main.append(catChips(icat,id=>{icat=id;render()}));
+  const holder=el('div');holder.id='itemsHolder';main.append(holder);
+  renderItemsGrid();
+}
+function renderItemsGrid(){
+  const h=$('#itemsHolder');if(!h)return;h.innerHTML='';
+  const l=filteredItems(iq,icat,isort);
+  if(!l.length){h.append(el('div','empty','<div class="big">🏷️</div>'+(Object.keys(H.items).length?'No items match.':'No items yet.<br>Items are the people, places and things you tag in journal entries.')));return}
+  h.append(itemCards(l,it=>openItem(it.id)).g);
+}
+function openItem(id){
+  const IP=openPanel('',P=>{
+    const it=H.items[id];if(!it){P.body.append(el('div','empty','Item deleted.'));return}
+    P.setTitle(it.name);
+    if(!readOnly){const e=el('button','sbtn','Edit');e.onclick=()=>openItemEditor(id);P.acts.append(e)}
+    const hero=el('div','hero',cat(it.cat).icon);if(it.cover){lazyThumb(hero,it.cover);hero.onclick=()=>openViewer([it.cover],0)}P.body.append(hero);
+    P.body.append(el('div','',`<div style="font-size:22px;font-weight:800">${esc(it.name)}</div><div style="color:#8b90a0;font-size:13px;margin-top:2px">${cat(it.cat).icon} ${esc(cat(it.cat).name)}</div>`));
+    if(it.notes){const n=el('div','post-txt',esc(it.notes));n.style.marginTop='10px';P.body.append(n)}
+    const ps=itemPosts(id);
+    const days=[...new Set(ps.map(p=>p.date))];
+    P.body.append(el('div','lbl','Logged on '+days.length+' day'+(days.length!==1?'s':'')+(days.length?' · first '+shortDate(days[days.length-1]):'')));
+    const allMedia=[].concat(...ps.map(p=>p.media||[]));
+    if(allMedia.length){const g=el('div','mgrid');allMedia.slice(0,12).forEach((m,i)=>g.append(mediaTile(m,{onclick:()=>openViewer(allMedia,i)})));P.body.append(g);if(allMedia.length>12)P.body.append(el('div','',`<p style="font-size:12px;color:#8b90a0;margin-top:6px">+${allMedia.length-12} more in the entries below</p>`))}
+    if(!ps.length)P.body.append(el('div','empty','Not tagged in any entry yet.'));
+    ps.forEach(p=>{
+      const li=el('div','li','<div class="tn">📝</div><div class="grow"><div class="t">'+esc(shortDate(p.date))+(p.time?' · '+esc(p.time):'')+'</div><div class="s">'+esc(p.text||((p.media||[]).length+' photo/video'))+'</div></div>');
+      if((p.media||[])[0]){const tn=li.querySelector('.tn');tn.textContent='';lazyThumb(tn,p.media[0])}
+      li.onclick=()=>openDay(p.date);P.body.append(li);
+    });
+    if(!readOnly){P.foot.classList.remove('hidden');const w=el('button','sbtn g','✍️ New entry with this');w.onclick=()=>openEditor(null,{date:today(),items:[id]});P.foot.append(w)}
+  });
+  IP.itemId=id;
+}
+function openItemEditor(id,onCreated){
+  const it=id?JSON.parse(JSON.stringify(H.items[id])):{name:'',cat:icat!=='all'?icat:(H.cats[0]||{}).id,notes:'',cover:null};
+  let stagedCover=null;
+  const P=openPanel(id?'Edit item':'New item',P=>{
+    const hero=el('div','hero',cat(it.cat).icon);
+    if(stagedCover)hero.style.backgroundImage='url('+stagedCover.url+')',hero.textContent='';else if(it.cover)lazyThumb(hero,it.cover);
+    P.body.append(hero);
+    const cb=el('div','row2');cb.style.marginBottom='12px';
+    const c1=el('button','sbtn','📷 Cover from phone');c1.onclick=()=>pickPhoneMedia(f=>{const b=f.find(x=>kindOfBlob(x)==='i')||f[0];if(stagedCover)URL.revokeObjectURL(stagedCover.url);stagedCover={blob:b,url:URL.createObjectURL(b)};P.refresh()});
+    const c2=el('button','sbtn','📁 From vault');c2.onclick=()=>openFilePicker(refs=>{if(refs[0]){it.cover=refs[0];stagedCover=null;P.refresh()}},{single:true});
+    cb.append(c1,c2);
+    if(it.cover||stagedCover){const c3=el('button','sbtn red','✕');c3.onclick=()=>{it.cover=null;stagedCover=null;P.refresh()};cb.append(c3)}
+    P.body.append(cb);
+    const nm=el('input','fld');nm.placeholder='Name';nm.value=it.name;nm.oninput=()=>it.name=nm.value;P.body.append(nm);
+    P.body.append(el('div','lbl','Category'));
+    P.body.append(catChips(it.cat,cid=>{if(cid!=='all'){it.cat=cid;P.refresh()}}));
+    P.body.append(el('div','lbl','Notes'));
+    const no=el('textarea','fld');no.style.minHeight='90px';no.placeholder='Anything worth remembering…';no.value=it.notes||'';no.oninput=()=>it.notes=no.value;P.body.append(no);
+    P.foot.classList.remove('hidden');
+    if(id){const del=el('button','sbtn red','Delete');del.style.flex='0 0 auto';del.onclick=()=>{if(!confirm('Delete "'+it.name+'"? It will be untagged from all entries.'))return;delete H.items[id];Object.values(H.posts).forEach(p=>p.items=(p.items||[]).filter(x=>x!==id));saveHub();P.noAutoRefresh=true;P.close(false);setTimeout(()=>{const ip=panels.find(x=>x.itemId===id);if(ip)ip.close(false);refreshAll()},60)};P.foot.append(del)}
+    const sv=el('button','sbtn g','Save');sv.onclick=async()=>{
+      if(!it.name.trim())return vToast('Give it a name');
+      if(stagedCover){sv.disabled=true;const refs=await storeMedia([stagedCover.blob],today());sv.disabled=false;if(!refs)return;it.cover=refs[0];URL.revokeObjectURL(stagedCover.url);stagedCover=null}
+      it.name=it.name.trim();
+      const nid=id||uid();H.items[nid]=Object.assign(H.items[nid]||{id:nid,created:Date.now()},it,{id:nid});saveHub();
+      P.noAutoRefresh=true;P.close(false);setTimeout(()=>{refreshAll();onCreated&&onCreated(nid)},60);
+    };
+    P.foot.append(sv);
+  });
+  P.noAutoRefresh=true;
+}
+function openItemPicker(selected,cb){
+  const sel=selected.slice();let q='',cid='all';
+  const P=openPanel('Tag items',P=>{
+    const r=el('div','row2');r.style.marginBottom='8px';
+    const s=el('input','in');s.placeholder='Search…';s.value=q;s.oninput=()=>{q=s.value;draw()};
+    const nb=el('button','sbtn','＋ New');nb.onclick=()=>openItemEditor(null,nid=>{sel.push(nid);P.refresh()});
+    r.append(s,nb);P.body.append(r);
+    P.body.append(catChips(cid,c=>{cid=c;P.refresh()}));
+    const holder=el('div');P.body.append(holder);
+    function draw(){holder.innerHTML='';const l=filteredItems(q,cid,'name');if(!l.length){holder.append(el('div','empty','No items. Tap ＋ New.'));return}
+      holder.append(itemCards(l,(it,c)=>{const i=sel.indexOf(it.id);if(i>-1)sel.splice(i,1);else sel.push(it.id);c.classList.toggle('sel',i<0);dn.textContent='Done ('+sel.length+')'},sel).g)}
+    P.foot.classList.remove('hidden');
+    const dn=el('button','sbtn g','Done ('+sel.length+')');dn.onclick=()=>{P.close(false);cb(sel)};P.foot.append(dn);
+    draw();
+  });
+  P.noAutoRefresh=true;
+}
+
+/* vault file picker (for attaching existing vault files to entries / covers) */
+function openFilePicker(cb,opt){
+  opt=opt||{};let at=root;const sel=new Map();
+  const P=openPanel(opt.single?'Pick a file':'Pick from vault',async P=>{
+    const cr=el('div','crumbs');let n=at;const chain=[];while(n){chain.unshift(n);n=n.parent}
+    chain.forEach((d,i)=>{if(i)cr.append(el('span','sep','›'));const b=el('button','',esc(i?d.name:'🏠 '+d.name));b.onclick=()=>{at=d;P.refresh()};cr.append(b)});
+    P.body.append(cr);
+    const{dirs,files}=await listDir(at);
+    const g=el('div','vgrid');
+    dirs.forEach(sd=>{const c=el('div','vc dir','<div class="th">📁</div><div class="nm">'+esc(sd.name)+'</div>');c.onclick=()=>{at=sd;P.refresh()};g.append(c)});
+    files.forEach(f=>{const c=el('div','vc'+(sel.has(f.path)?' sel':''),'<div class="th">'+(f.k==='v'?'▶':'🖼')+'</div><div class="nm">'+esc(f.name)+'</div>');
+      if(sel.has(f.path))c.style.outline='3px solid #538d4e';
+      lazyThumb(c.querySelector('.th'),f);
+      c.onclick=()=>{if(opt.single){P.close(false);cb([{p:f.path,k:f.k,n:f.name}]);return}
+        if(sel.has(f.path)){sel.delete(f.path);c.style.outline=''}else{sel.set(f.path,{p:f.path,k:f.k,n:f.name});c.style.outline='3px solid #538d4e'}dn.textContent='Attach ('+sel.size+')'};
+      g.append(c)});
+    if(!dirs.length&&!files.length)P.body.append(el('div','empty','Empty folder'));else P.body.append(g);
+    let dn;
+    if(!opt.single){P.foot.classList.remove('hidden');dn=el('button','sbtn g','Attach ('+sel.size+')');dn.onclick=()=>{P.close(false);cb([...sel.values()])};P.foot.append(dn)}
+  });
+  P.noAutoRefresh=true;
+}
+
+/* ─────────── FILES ─────────── */
+async function renderFiles(main,tok){
+  const frag=el('div');
+  const cr=el('div','crumbs');
+  stack.forEach((d,i)=>{if(i)cr.append(el('span','sep','›'));const b=el('button','',esc(i?d.name:'🏠 '+d.name));b.onclick=()=>{stack=stack.slice(0,i+1);render()};cr.append(b)});
+  frag.append(cr);
+  const bar=el('div','vbar');
+  [['＋ Add',addToFolder],['🔀 Shuffle',async()=>{const l=await gather(stack[stack.length-1],cfg.deep,'v');if(!l.length)return vToast('No videos here');openPlayer(l,0,true)}],
+   ['▶ Play all',()=>{const v=curFiles.filter(f=>f.k==='v');if(!v.length)return vToast('No videos in this folder');openPlayer(v,0,false)}],
+   ['🧩 Puzzle',async()=>{const l=await gather(stack[stack.length-1],cfg.deep);if(!l.length)return vToast('Nothing here');openPuzzle(l)}],
+   ['📁 New folder',newFolder]].forEach(([t,f],i)=>{if(readOnly&&(i===0||i===4))return;const b=el('button','sbtn',t);b.onclick=f;bar.append(b)});
+  frag.append(bar);
+  const d=stack[stack.length-1];
+  let res;try{res=await listDir(d)}catch(e){main.innerHTML='';main.append(frag,el('div','empty','Could not read this folder.<br>'+esc(e.message||e)));return}
+  if(tok!==renderTok)return;
+  curDirs=res.dirs;curFiles=res.files;
+  if(!readOnly&&d===root){
+    if(!await hasNomedia(root))frag.append(nomediaBanner());
+    if(STD_ROOTS.test(root.name))frag.append(el('div','banner warn','⚠️ "'+esc(root.name)+'" looks like a top-level system folder. Android may ignore .nomedia there, so pick a subfolder inside it instead (Settings → Change folder).'));
+  }
+  await showIncoming(frag);
+  if(tok!==renderTok)return;
+  if(!curDirs.length&&!curFiles.length)frag.append(el('div','empty','<div class="big">📁</div>Empty folder.<br>Tap <b>＋ Add</b>, or share files to this app from your gallery.'));
+  else{
+    const g=el('div','vgrid');
+    curDirs.forEach(sd=>{
+      const c=el('div','vc dir','<div class="th">📁</div><div class="nm">'+esc(sd.name)+'</div><button class="more">⋯</button>');
+      c.onclick=e=>{if(e.target.classList.contains('more'))return dirMenu(sd);stack.push(sd);render()};
+      g.append(c);
+    });
+    const vids=curFiles.filter(f=>f.k==='v'),imgs=curFiles.filter(f=>f.k==='i');
+    curFiles.forEach(f=>{
+      const c=el('div','vc','<div class="th" data-dur>'+(f.k==='v'?'▶':'🖼')+'</div><div class="nm">'+esc(f.name)+'</div><button class="more">⋯</button>');
+      const open=()=>f.k==='v'?openPlayer(vids,vids.indexOf(f),false):openViewer(imgs,imgs.indexOf(f));
+      c.onclick=e=>{if(e.target.classList.contains('more'))return fileMenu(f);open()};
+      let lp,fired=false;c.addEventListener('touchstart',()=>{fired=false;lp=setTimeout(()=>{fired=true;fileMenu(f)},550)},{passive:true});
+      c.addEventListener('touchend',e=>{clearTimeout(lp);if(fired)e.preventDefault()});
+      c.addEventListener('touchmove',()=>clearTimeout(lp),{passive:true});
+      lazyThumb(c.querySelector('.th'),f);g.append(c);
+    });
+    frag.append(g);
+  }
+  main.innerHTML='';main.append(frag);
+}
+function addToFolder(){if(readOnly)return;const i=$('#addInput');i.value='';i.onchange=async()=>{setPicking(false);const f=[...i.files];i.value='';if(f.length)await saveItems(f.map(x=>({name:x.name,blob:x})))};i.oncancel=()=>setPicking(false);setPicking(true);i.click()}
+function fileMenu(f){
+  const ref={p:f.path,k:f.k,n:f.name};
+  const items=[{label:f.k==='v'?'▶ Play':'🖼 View',fn:()=>{const same=curFiles.filter(x=>x.k===f.k);f.k==='v'?openPlayer(same,same.indexOf(f),false):openViewer(same,same.indexOf(f))}},
+    {label:'🧩 Slide puzzle',fn:()=>openPuzzle([f],0)}];
+  if(!readOnly&&H){
+    items.push({label:'📅 Add to today\'s journal',fn:()=>{addPost({date:today(),time:nowTime(),text:'',media:[ref],items:[]});vToast('Added to today')}});
+    items.push({label:'📅 Add to another day…',fn:()=>{const ds=prompt('Date (YYYY-MM-DD)',today());if(!ds||!/^\d{4}-\d\d-\d\d$/.test(ds))return;addPost({date:ds,time:nowTime(),text:'',media:[ref],items:[]});vToast('Added to '+shortDate(ds))}});
+    if(f.k==='i')items.push({label:'🏷️ Use as item cover…',fn:()=>openItemPicker([],ids=>{ids.forEach(id=>{if(H.items[id])H.items[id].cover=ref});saveHub();refreshAll();vToast('Cover set')})});
+  }
+  if(!readOnly){
+    if(canMove)items.push({label:'✏️ Rename',fn:()=>renameFile(f)},{label:'📦 Move to…',fn:()=>moveMenu(f)});
+    items.push({label:'🗑 Delete',danger:true,fn:async()=>{if(!confirm('Delete "'+f.name+'"?\nThis permanently removes the file.'))return;try{await f.dir.h.removeEntry(f.name);vToast('Deleted')}catch(e){vToast('Delete failed: '+e.message)}render()}});
+  }
+  sheet(f.name,items);
 }
 function dirMenu(sd){
   const items=[{label:'📂 Open',fn:()=>{stack.push(sd);render()}},
-    {label:'🔀 Shuffle play folder',fn:async()=>{const l=await gather(sd,cfg.deep);if(!l.length)return vToast('No videos in there');openPlayer(l,0,true)}},
-    {label:'🧩 Random puzzle from folder',fn:async()=>{const l=await gather(sd,cfg.deep);if(!l.length)return vToast('No videos in there');openPuzzle(l)}}];
+    {label:'🔀 Shuffle play folder',fn:async()=>{const l=await gather(sd,cfg.deep,'v');if(!l.length)return vToast('No videos in there');openPlayer(l,0,true)}},
+    {label:'🧩 Random puzzle from folder',fn:async()=>{const l=await gather(sd,cfg.deep);if(!l.length)return vToast('Nothing in there');openPuzzle(l)}}];
   if(!readOnly)items.push({label:'🗑 Delete folder',danger:true,fn:async()=>{if(!confirm('Delete folder "'+sd.name+'" and EVERYTHING inside it?'))return;try{await stack[stack.length-1].h.removeEntry(sd.name,{recursive:true});vToast('Folder deleted')}catch(e){vToast('Delete failed: '+e.message)}render()}});
   sheet(sd.name,items);
 }
-async function renameVid(v){
-  const i=v.name.lastIndexOf('.'),ext=i>0?v.name.slice(i):'';
-  let n=prompt('Rename',i>0?v.name.slice(0,i):v.name);if(n==null)return;n=cleanName(n);if(!n)return;
-  const full=VIDEO_RE.test(n)?n:n+ext;if(full===v.name)return;
-  if(await exists(v.dir,full))return vToast('That name is taken');
-  try{await v.h.move(full);vToast('Renamed')}catch(e){vToast('Rename failed: '+e.message)}render();
+async function renameFile(f){
+  const i=f.name.lastIndexOf('.'),ext=i>0?f.name.slice(i):'';
+  let n=prompt('Rename',i>0?f.name.slice(0,i):f.name);if(n==null)return;n=cleanName(n);if(!n)return;
+  const full=kindOf(n)?n:n+ext;if(full===f.name)return;
+  if(await exists(f.dir,full))return vToast('That name is taken');
+  try{await f.h.move(full);updateRefs(f.path,f.dir.path+'/'+full);vToast('Renamed')}catch(e){vToast('Rename failed: '+e.message)}render();
 }
-async function moveMenu(v){
-  const d=stack[stack.length-1],opts=[];
-  if(stack.length>1)opts.push({label:'⬆ Up to "'+stack[stack.length-2].name+'"',fn:()=>doMove(v,stack[stack.length-2])});
-  curDirs.forEach(sd=>opts.push({label:'📁 '+sd.name,fn:()=>doMove(v,sd)}));
-  opts.push({label:'＋ New folder here…',fn:async()=>{const sd=await newFolder();if(sd)doMove(v,sd)}});
-  sheet('Move "'+v.name+'" to',opts);
+function moveMenu(f){
+  const opts=[];
+  if(stack.length>1)opts.push({label:'⬆ Up to "'+stack[stack.length-2].name+'"',fn:()=>doMove(f,stack[stack.length-2])});
+  curDirs.forEach(sd=>opts.push({label:'📁 '+sd.name,fn:()=>doMove(f,sd)}));
+  opts.push({label:'＋ New folder here…',fn:async()=>{const sd=await newFolder();if(sd)doMove(f,sd)}});
+  sheet('Move "'+f.name+'" to',opts);
 }
-async function doMove(v,dest){
+async function doMove(f,dest){
   if(!await writeGuard(dest))return;
-  const name=await uniqueName(dest,v.name);
-  try{await v.h.move(dest.h,name);vToast('Moved to '+dest.name)}catch(e){vToast('Move failed: '+e.message)}render();
+  const name=await uniqueName(dest,f.name);
+  try{await f.h.move(dest.h,name);updateRefs(f.path,dest.path+'/'+name);vToast('Moved to '+dest.name)}catch(e){vToast('Move failed: '+e.message)}render();
 }
 async function newFolder(){
   const d=stack[stack.length-1];if(!await writeGuard(d))return null;
@@ -696,27 +1195,179 @@ async function newFolder(){
   catch(e){vToast('Could not create folder: '+e.message);return null}
 }
 
-/* toolbar */
-$('#bAdd').onclick=()=>{if(readOnly)return vToast('Read-only mode, can\'t add here');picking=true;const i=$('#addInput');i.value='';i.click()};
-$('#addInput').addEventListener('change',async e=>{picking=false;const f=[...e.target.files];e.target.value='';if(f.length)await saveItems(f.map(x=>({name:x.name,blob:x})))});
-$('#addInput').addEventListener('cancel',()=>picking=false);
-$('#bFolder').onclick=newFolder;
-$('#bShuffle').onclick=async()=>{const l=await gather(stack[stack.length-1],cfg.deep);if(!l.length)return vToast('No videos here');openPlayer(l,0,true)};
-$('#bPlayAll').onclick=()=>{if(!curVids.length)return vToast('No videos in this folder');openPlayer(curVids,0,false)};
-$('#bPuzzle').onclick=async()=>{const l=await gather(stack[stack.length-1],cfg.deep);if(!l.length)return vToast('No videos here');openPuzzle(l)};
-
 /* incoming from the Android share sheet (stashed by sw.js until unlocked) */
-async function showIncoming(main){
-  if(!('caches' in window)||readOnly)return;
+async function showIncoming(container){
+  if(!('caches' in window)||readOnly||!root.h)return;
   let c,keys;try{c=await caches.open('wg-share');keys=(await c.keys()).filter(r=>/\/in-/.test(r.url))}catch(e){return}
   if(!keys.length)return;
-  const b=el('div','banner','📥 <b>'+keys.length+' shared video'+(keys.length>1?'s':'')+'</b> waiting. Save them into <b>'+esc(stack[stack.length-1].name)+'</b>?<br><small>The originals stay in your gallery, so delete them there yourself.</small><div class="bb"><button class="sbtn" id="inSave">Save here</button><button class="sbtn" id="inDrop">Discard</button></div>');
-  b.querySelector('#inSave').onclick=async()=>{
-    const items=[];for(const k of keys){const r=await c.match(k);if(!r)continue;items.push({name:decodeURIComponent(r.headers.get('X-Name')||'')||('shared-'+Date.now()),blob:await r.blob()})}
-    if(await saveItems(items)){for(const k of keys)await c.delete(k);render()}
-  };
-  b.querySelector('#inDrop').onclick=async()=>{if(!confirm('Discard the shared videos?'))return;for(const k of keys)await c.delete(k);render()};
+  const b=el('div','banner','📥 <b>'+keys.length+' shared file'+(keys.length>1?'s':'')+'</b> waiting.<br><small>The originals stay in your gallery, so delete them there yourself.</small><div class="bb"><button class="sbtn g" id="inJ">📅 Add to today\'s journal</button><button class="sbtn" id="inF">📁 Save in Files</button><button class="sbtn" id="inD">Discard</button></div>');
+  const load=async()=>{const items=[];for(const k of keys){const r=await c.match(k);if(!r)continue;const blob=await r.blob();const nm=decodeURIComponent(r.headers.get('X-Name')||'')||('shared-'+Date.now());items.push({name:nm,blob:new File([blob],nm,{type:blob.type})})}return items};
+  const clear=async()=>{for(const k of keys)await c.delete(k)};
+  b.querySelector('#inJ').onclick=async()=>{const it=await load();const refs=await storeMedia(it.map(x=>x.blob),today());if(refs){addPost({date:today(),time:nowTime(),text:'',media:refs,items:[]});await clear();vToast('Added to today');render()}};
+  b.querySelector('#inF').onclick=async()=>{cfg.tab='files';saveCfg();const it=await load();if(await saveItems(it)){await clear();render()}};
+  b.querySelector('#inD').onclick=async()=>{if(!confirm('Discard the shared files?'))return;await clear();render()};
+  container.append(b);
+}
+
+/* ═════════════════════ SCREENSHOT INBOX ═════════════════════
+   Point a screenshot mover (Tasker, a file manager, or "share → Wordle")
+   at <vault>/Inbox. Anything new there is filed into the journal by date. */
+function dateFromName(name,fallbackMs){
+  const m=name.match(/(20\d\d)[-_.]?(\d\d)[-_.]?(\d\d)(?:[-_ T.]?(\d\d)[-_:.]?(\d\d))?/);
+  if(m&&+m[2]>=1&&+m[2]<=12&&+m[3]>=1&&+m[3]<=31)return{date:m[1]+'-'+m[2]+'-'+m[3],time:m[4]?m[4]+':'+m[5]:''};
+  const d=new Date(fallbackMs||Date.now());return{date:dstr(d),time:pad(d.getHours())+':'+pad(d.getMinutes())};
+}
+async function inboxNew(){
+  if(!root||!root.h||!H)return[];
+  let d;try{d=child(root,cfg.inbox,{h:await root.h.getDirectoryHandle(cfg.inbox)})}catch(e){return[]}
+  const linked=new Set();Object.values(H.posts).forEach(p=>(p.media||[]).forEach(r=>linked.add(r.p)));
+  const{files}=await listDir(d);return files.filter(f=>!linked.has(f.path));
+}
+async function showInbox(main){
+  if(readOnly)return;
+  const files=await inboxNew();if(!files.length)return;
+  const b=el('div','banner','🖼 <b>'+files.length+' new in '+esc(cfg.inbox)+'</b>, ready to file into your journal by the date each was taken.<div class="bb"><button class="sbtn g" id="ibF">📅 File into journal</button><button class="sbtn" id="ibO">Open '+esc(cfg.inbox)+'</button></div>');
+  b.querySelector('#ibF').onclick=()=>fileInbox(files);
+  b.querySelector('#ibO').onclick=()=>{cfg.tab='files';saveCfg();stack=[root,files[0].dir];render()};
   main.append(b);
+}
+async function fileInbox(files){
+  if(!await writeGuard(root))return;
+  const groups={};let n=0;
+  for(let i=0;i<files.length;i++){
+    const f=files[i];let file;try{file=await f.h.getFile()}catch(e){continue}
+    const{date,time}=dateFromName(f.name,file.lastModified);
+    let ref={p:f.path,k:f.k,n:f.name};
+    if(cfg.inboxMove&&canMove){
+      try{const hub=await hubDir(),md=await subdir(hub,'media'),ym=await subdir(md,date.slice(0,7));const nm=await uniqueName(ym,f.name);await f.h.move(ym.h,nm);ref={p:ym.path+'/'+nm,k:f.k,n:f.name}}catch(e){}
+    }
+    (groups[date]=groups[date]||{time,media:[]}).media.push(ref);n++;
+    const t=$('#vToast');t.textContent='Filing '+(i+1)+'/'+files.length;t.classList.add('on');
+  }
+  Object.entries(groups).forEach(([date,g])=>{
+    const ex=(postsByDate()[date]||[]).find(p=>p.inbox);
+    if(ex){ex.media.push(...g.media);ex.updated=Date.now();H.posts[ex.id]=ex}
+    else{const p={id:uid(),date,time:g.time,text:'',media:g.media,items:[],inbox:true,created:Date.now(),updated:Date.now()};H.posts[p.id]=p}
+  });
+  saveHub();vToast(n+' filed across '+Object.keys(groups).length+' day'+(Object.keys(groups).length!==1?'s':''));refreshAll();
+}
+
+/* ═════════════════════ BACKUP / RESTORE (.zip, stored, built in-browser) ═════════════════════ */
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+async function crcOf(blob,onp){let c=0xFFFFFFFF;const r=blob.stream().getReader();for(;;){const{value,done}=await r.read();if(done)break;for(let i=0;i<value.length;i++)c=CRC_T[(c^value[i])&255]^(c>>>8);onp&&onp(value.length)}return(c^0xFFFFFFFF)>>>0}
+async function buildZip(entries,onp){// entries: [{name, blob, mtime}]
+  const enc=new TextEncoder(),parts=[],cent=[];let off=0,cdSize=0;
+  const total=entries.reduce((a,e)=>a+e.blob.size,0);let done=0;
+  if(total+entries.length*200>0xFFFFFFF0)throw new Error('Backup is over 4 GB. Use a journal backup, or back up subfolders separately.');
+  for(const e of entries){
+    const nb=enc.encode(e.name),size=e.blob.size,crc=await crcOf(e.blob,n=>{done+=n;onp&&onp(done/total)});
+    const d=new Date(e.mtime||Date.now()),tm=(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1),dt=((Math.max(1980,d.getFullYear())-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate();
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true);lh.setUint16(8,0,true);lh.setUint16(10,tm,true);lh.setUint16(12,dt,true);
+    lh.setUint32(14,crc,true);lh.setUint32(18,size,true);lh.setUint32(22,size,true);lh.setUint16(26,nb.length,true);lh.setUint16(28,0,true);
+    parts.push(lh.buffer,nb,e.blob);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);ch.setUint16(10,0,true);ch.setUint16(12,tm,true);ch.setUint16(14,dt,true);
+    ch.setUint32(16,crc,true);ch.setUint32(20,size,true);ch.setUint32(24,size,true);ch.setUint16(28,nb.length,true);ch.setUint32(42,off,true);
+    cent.push(ch.buffer,nb);cdSize+=46+nb.length;off+=30+nb.length+size;
+  }
+  const eo=new DataView(new ArrayBuffer(22));
+  eo.setUint32(0,0x06054b50,true);eo.setUint16(8,entries.length,true);eo.setUint16(10,entries.length,true);eo.setUint32(12,cdSize,true);eo.setUint32(16,off,true);
+  return new Blob([...parts,...cent,eo.buffer],{type:'application/zip'});
+}
+async function walkAll(dh,prefix,out){// every file incl. dotfiles, minus .part temp files and Backups
+  for await(const [name,h] of dh.entries()){
+    const p=prefix+'/'+name;
+    if(h.kind==='directory'){if(!(prefix===''&&name==='Backups'))await walkAll(h,p,out)}
+    else if(!name.endsWith('.part'))out.push({p,h});
+  }
+  return out;
+}
+async function backupFlow(kind){
+  if(!root||!root.h||!H)return vToast('Connect your vault folder first');
+  sheet('Where should the backup go?',[
+    {label:'⬇ Download to phone (Downloads folder)',fn:()=>makeBackup(kind,'download')},
+    {label:'📁 Save inside vault / Backups',fn:()=>makeBackup(kind,'vault')}]);
+}
+async function makeBackup(kind,dest){
+  const t=$('#vToast');clearTimeout(vToastT);
+  try{
+    t.innerHTML='Collecting files…';t.classList.add('on');
+    saveHub(true);await new Promise(r=>setTimeout(r,300));
+    let list=[];
+    if(kind==='all')list=await walkAll(root.h,'',[]);
+    else{
+      try{const hub=await root.h.getDirectoryHandle('.hub');list=await walkAll(hub,'/.hub',[])}catch(e){}
+      const have=new Set(list.map(x=>x.p)),refs=[];
+      Object.values(H.posts).forEach(p=>(p.media||[]).forEach(r=>refs.push(r)));Object.values(H.items).forEach(i=>i.cover&&refs.push(i.cover));
+      for(const r of refs){if(have.has(r.p))continue;have.add(r.p);try{list.push({p:r.p,h:await resolvePath(r.p)})}catch(e){}}
+    }
+    const entries=[];
+    for(const x of list){try{const f=await x.h.getFile();entries.push({name:x.p.replace(/^\//,''),blob:f,mtime:f.lastModified})}catch(e){}}
+    // always include the freshest journal JSON
+    const js=new Blob([JSON.stringify(H)],{type:'application/json'});
+    const ji=entries.findIndex(e=>e.name==='.hub/data.json');if(ji>-1)entries[ji].blob=js;else entries.push({name:'.hub/data.json',blob:js,mtime:Date.now()});
+    t.innerHTML='Building backup ('+entries.length+' files)<div class="prog"><i></i></div>';const bar=t.querySelector('i');
+    const zip=await buildZip(entries,p=>bar.style.width=(p*100).toFixed(1)+'%');
+    const name=(cfg.title||'Wordle').replace(/\W+/g,'-').toLowerCase()+'-'+(kind==='all'?'full':'journal')+'-'+today()+'.zip';
+    if(dest==='vault'){
+      const bd=await subdir(root,'Backups');if(!await writeGuard(bd))return;
+      await writeFile(bd,await uniqueName(bd,name),zip,progressToast(0,1));
+      vToast('Saved to '+root.name+'/Backups/'+name,4000);
+    }else{
+      const u=URL.createObjectURL(zip),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);
+      setPicking(true,15000);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),120000);
+      vToast('Backup ready: '+name+'\n'+(zip.size/1048576).toFixed(1)+' MB',4000);
+    }
+  }catch(e){vToast('Backup failed: '+(e.message||e),5000)}
+}
+function restoreFlow(){
+  if(!root||!root.h||!H)return vToast('Connect your vault folder first');
+  const i=$('#zipInput');i.value='';
+  i.onchange=async()=>{setPicking(false);const f=i.files[0];i.value='';if(f)await restoreZip(f)};
+  i.oncancel=()=>setPicking(false);setPicking(true);i.click();
+}
+async function restoreZip(zf){
+  if(!await writeGuard(root))return;
+  const t=$('#vToast');clearTimeout(vToastT);t.textContent='Reading backup…';t.classList.add('on');
+  try{
+    const tailLen=Math.min(zf.size,65557),tail=new DataView(await zf.slice(zf.size-tailLen).arrayBuffer());
+    let eo=-1;for(let i=tailLen-22;i>=0;i--)if(tail.getUint32(i,true)===0x06054b50){eo=i;break}
+    if(eo<0)throw new Error('Not a zip file');
+    const n=tail.getUint16(eo+10,true),cdSize=tail.getUint32(eo+12,true),cdOff=tail.getUint32(eo+16,true);
+    const cd=new DataView(await zf.slice(cdOff,cdOff+cdSize).arrayBuffer()),dec=new TextDecoder();
+    const ents=[];let q=0;
+    for(let k=0;k<n;k++){
+      if(cd.getUint32(q,true)!==0x02014b50)throw new Error('Damaged zip');
+      const method=cd.getUint16(q+10,true),csize=cd.getUint32(q+20,true),nl=cd.getUint16(q+28,true),xl=cd.getUint16(q+30,true),cl=cd.getUint16(q+32,true),lo=cd.getUint32(q+42,true);
+      const name=dec.decode(new Uint8Array(cd.buffer,q+46,nl));q+=46+nl+xl+cl;
+      if(name.endsWith('/'))continue;ents.push({name,method,csize,lo});
+    }
+    let wrote=0,skipped=0,bad=0,incoming=null;
+    for(let k=0;k<ents.length;k++){
+      const e=ents[k];
+      if(e.method!==0){bad++;continue}
+      const lh=new DataView(await zf.slice(e.lo,e.lo+30).arrayBuffer()),start=e.lo+30+lh.getUint16(26,true)+lh.getUint16(28,true);
+      const blob=zf.slice(start,start+e.csize);
+      if(e.name==='.hub/data.json'){try{incoming=JSON.parse(await blob.text())}catch(x){}continue}
+      if(e.name==='.hub/data.bak.json')continue;
+      const parts=e.name.split('/').filter(Boolean);if(parts.some(x=>x==='..'))continue;
+      let d=root;for(const x of parts.slice(0,-1))d=await subdir(d,x);
+      const fn=parts[parts.length-1];
+      try{const ex=await (await d.h.getFileHandle(fn)).getFile();if(ex.size===blob.size){skipped++;continue}}catch(x){}
+      t.innerHTML='Restoring '+(k+1)+'/'+ents.length+'<div class="prog"><i></i></div>';
+      await writeDirect(d.h,fn,blob);wrote++;
+    }
+    let merged=0;
+    if(incoming&&incoming.posts){
+      for(const [id,p] of Object.entries(incoming.posts)){const mine=H.posts[id];if(!mine||(p.updated||0)>(mine.updated||0)){H.posts[id]=p;merged++}}
+      for(const [id,it] of Object.entries(incoming.items||{}))if(!H.items[id])H.items[id]=it;
+      (incoming.cats||[]).forEach(c=>{if(!H.cats.find(x=>x.id===c.id))H.cats.push(c)});
+      saveHub(true);
+    }
+    vToast('Restored '+wrote+' file'+(wrote!==1?'s':'')+(skipped?', '+skipped+' already here':'')+(merged?', '+merged+' journal entries':'')+(bad?'\n'+bad+' compressed files skipped (use a backup made by this app)':''),5000);
+    refreshAll();
+  }catch(e){vToast('Restore failed: '+(e.message||e),5000)}
 }
 
 /* settings */
@@ -725,32 +1376,77 @@ $('#vSettings').onclick=()=>{
   w.innerHTML='<h3>Vault</h3>'+
    '<label><span>Folder<small>'+(root?esc(root.name)+(readOnly?' (read-only)':''):'none')+'</small></span><button class="sbtn" id="sChg">Change folder</button></label>'+
    '<label><span>Shuffle & puzzle include subfolders</span><input type="checkbox" id="sDeep"'+(cfg.deep?' checked':'')+'></label>'+
+   '<h3>Screenshot Inbox</h3>'+
+   '<label><span>Inbox folder (inside vault)<small>New screenshots dropped here get filed into the journal by the date they were taken</small></span><input type="text" id="sInbox" value="'+esc(cfg.inbox)+'" maxlength="40" style="width:110px"></label>'+
+   '<label><span>Move filed screenshots into the journal<small>Off = leave them in the Inbox and just link them</small></span><input type="checkbox" id="sInMove"'+(cfg.inboxMove?' checked':'')+'></label>'+
+   '<div style="padding:6px 4px"><button class="sbtn" id="sInMk">📁 Create Inbox folder</button></div>'+
+   '<h3>Backup</h3>'+
+   '<div style="padding:4px;display:flex;gap:6px;flex-wrap:wrap"><button class="sbtn g" id="sBkJ">⬇ Journal backup (.zip)</button><button class="sbtn" id="sBkA">⬇ Full vault backup (.zip)</button><button class="sbtn" id="sRest">⬆ Restore from .zip</button></div>'+
+   '<p style="font-size:11px;color:#8b90a0;padding:2px 4px 6px;line-height:1.5">Journal = entries, items and every photo/video attached to them. Full = everything in the vault folder. A .zip is a single file, so gallery apps never show its contents.</p>'+
+   '<h3>Item categories</h3><div id="sCats"></div><div style="padding:6px 4px"><button class="sbtn" id="sCatAdd">＋ Add category</button></div>'+
    '<h3>Disguise</h3>'+
-   '<label><span>Game title</span><input type="text" id="sTitle" value="'+esc(cfg.title)+'" maxlength="16" style="width:130px"></label>'+
+   '<label><span>Tab / window title</span><input type="text" id="sTitle" value="'+esc(cfg.title)+'" maxlength="20" style="width:130px"></label>'+
    '<label><span>Taps on letter grid to show code box</span><select id="sTaps">'+[1,2,3,4,5].map(n=>'<option'+(n==cfg.taps?' selected':'')+'>'+n+'</option>').join('')+'</select></label>'+
    '<label><span>Lock when leaving the app<small>Pauses video and goes back to the game whenever you switch away</small></span><input type="checkbox" id="sAuto"'+(cfg.autolock?' checked':'')+'></label>'+
    '<h3>Change code</h3>'+
    '<div style="padding:4px"><input class="fld" type="password" id="sOld" placeholder="Current code" autocomplete="off"><input class="fld" type="password" id="sNew" placeholder="New code (4+)" autocomplete="off"><button class="sbtn" id="sCode">Update code</button></div>'+
-   '<h3>Reset</h3><div style="padding:4px"><button class="sbtn" id="sReset" style="color:#ff6b6b">Forget code, folder & thumbnails</button><p style="font-size:11px;color:#8b90a0;margin-top:6px">Your video files are not touched.</p></div>';
+   '<h3>Reset</h3><div style="padding:4px"><button class="sbtn red" id="sReset">Forget code, folder & thumbnails</button><p style="font-size:11px;color:#8b90a0;margin-top:6px">Your files and journal in the vault folder are not touched.</p></div>';
   sheet('Settings',[],w);
+  const drawCats=()=>{const box=w.querySelector('#sCats');box.innerHTML='';if(!H){box.innerHTML='<p style="font-size:12px;color:#8b90a0;padding:4px">Connect a vault first.</p>';return}
+    H.cats.forEach((c,i)=>{const r=el('label','','<span>'+esc(c.icon+' '+c.name)+'</span>');const e=el('button','sbtn','Edit');e.onclick=ev=>{ev.preventDefault();const ic=prompt('Emoji',c.icon);if(ic==null)return;const nm=prompt('Name',c.name);if(!nm)return;c.icon=ic.trim()||'🏷️';c.name=nm.trim();saveHub();drawCats();render()};
+      const d=el('button','sbtn red','✕');d.onclick=ev=>{ev.preventDefault();if(H.cats.length<2)return;if(!confirm('Remove category "'+c.name+'"? Items in it stay (uncategorized).'))return;H.cats.splice(i,1);saveHub();drawCats();render()};
+      const g=el('span','row2');g.append(e,d);r.append(g);box.append(r)})};
+  drawCats();
+  w.querySelector('#sCatAdd').onclick=()=>{if(!H)return;const nm=prompt('Category name');if(!nm)return;const ic=prompt('Emoji for it','🏷️')||'🏷️';H.cats.push({id:uid(),name:nm.trim(),icon:ic.trim()});saveHub();drawCats();render()};
   w.querySelector('#sChg').onclick=()=>{document.querySelector('.sh-bg').remove();pickVault()};
   w.querySelector('#sDeep').onchange=e=>{cfg.deep=e.target.checked;saveCfg()};
-  w.querySelector('#sTitle').onchange=e=>{cfg.title=(e.target.value.trim()||'WORDLE').slice(0,16);saveCfg()};
+  w.querySelector('#sInbox').onchange=e=>{cfg.inbox=cleanName(e.target.value)||'Inbox';e.target.value=cfg.inbox;saveCfg();render()};
+  w.querySelector('#sInMove').onchange=e=>{cfg.inboxMove=e.target.checked;saveCfg()};
+  w.querySelector('#sInMk').onclick=async()=>{if(!root||!await writeGuard(root))return;try{const d=await subdir(root,cfg.inbox);await makeNomedia(d);vToast('"'+cfg.inbox+'" ready (has .nomedia) ✓')}catch(e){vToast('Could not create: '+e.message)}};
+  const close=()=>{const b=document.querySelector('.sh-bg');if(b)b.remove()};
+  w.querySelector('#sBkJ').onclick=()=>{close();backupFlow('journal')};
+  w.querySelector('#sBkA').onclick=()=>{close();backupFlow('all')};
+  w.querySelector('#sRest').onclick=()=>{close();restoreFlow()};
+  w.querySelector('#sTitle').onchange=e=>{cfg.title=(e.target.value.trim()||'Wordle').slice(0,20);saveCfg()};
   w.querySelector('#sTaps').onchange=e=>{cfg.taps=+e.target.value;saveCfg()};
   w.querySelector('#sAuto').onchange=e=>{cfg.autolock=e.target.checked;saveCfg()};
   w.querySelector('#sCode').onclick=async()=>{const o=w.querySelector('#sOld').value,n=w.querySelector('#sNew').value;if(!await checkCode(o))return vToast('Current code is wrong');if(n.length<4)return vToast('New code needs 4+ characters');await setCode(n);w.querySelector('#sOld').value=w.querySelector('#sNew').value='';vToast('Code updated ✓')};
-  w.querySelector('#sReset').onclick=async()=>{if(!confirm('Reset the app? You\'ll set a new code and pick the folder again. Videos stay where they are.'))return;
+  w.querySelector('#sReset').onclick=async()=>{if(!confirm('Reset the app? You\'ll set a new code and pick the folder again. Files and journal in the vault folder stay.'))return;
     try{localStorage.removeItem(CFG_KEY);await idb('kv','readwrite',s=>s.clear());await clearStore('thumbs')}catch(e){}location.reload()};
 };
+
+/* ═════════════════════ VIEWER (photos + videos in journal) ═════════════════════ */
+const vw={list:[],i:0,url:null,open:false};
+const vwImg=$('#vwImg'),vwVid=$('#vwVid'),viewer=$('#viewer');
+function openViewer(list,i){vw.list=list.slice();vw.i=Math.max(0,i);viewer.classList.remove('hidden');vw.open=true;pushOverlay(()=>closeViewer(true));showVw()}
+async function showVw(){
+  const s=vw.list[vw.i];if(!s)return;
+  let f;try{f=await fileOf(s)}catch(e){vToast('File is missing (moved or deleted?)');return}
+  if(vw.url)URL.revokeObjectURL(vw.url);vw.url=URL.createObjectURL(f);
+  const v=srcKind(s)==='v';
+  vwVid.pause();vwImg.classList.toggle('hidden',v);vwVid.classList.toggle('hidden',!v);
+  if(v){vwImg.removeAttribute('src');vwVid.src=vw.url;vwVid.play().catch(()=>{})}else{vwVid.removeAttribute('src');vwImg.src=vw.url}
+  $('#vwTitle').textContent=(vw.list.length>1?(vw.i+1)+' / '+vw.list.length+' · ':'')+srcName(s);
+}
+function closeViewer(fromPop){if(!vw.open)return;vw.open=false;vwVid.pause();vwVid.removeAttribute('src');vwImg.removeAttribute('src');if(vw.url){URL.revokeObjectURL(vw.url);vw.url=null}viewer.classList.add('hidden');if(!fromPop)popOverlay()}
+$('#vwClose').onclick=()=>closeViewer(false);
+$('#vwPuz').onclick=()=>{const l=vw.list,i=vw.i;closeViewer(true);overlays.pop();openPuzzle(l,i,true)};
+(()=>{let sx,sy,st;
+  viewer.addEventListener('touchstart',e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY;st=Date.now()},{passive:true});
+  viewer.addEventListener('touchend',e=>{if(e.target.closest('.pbar')||e.target===vwVid&&e.changedTouches[0].clientY>window.innerHeight-90)return;
+    const t=e.changedTouches[0],dx=t.clientX-sx,dy=t.clientY-sy;
+    if(Math.abs(dx)>70&&Math.abs(dx)>Math.abs(dy)*1.5&&Date.now()-st<600&&vw.list.length>1){vw.i=(vw.i+(dx<0?1:-1)+vw.list.length)%vw.list.length;showVw();return}
+    if(Math.hypot(dx,dy)<10&&e.target===vwImg)viewer.classList.toggle('hide-ui')});
+  document.addEventListener('keydown',e=>{if(!vw.open)return;if(e.key==='ArrowRight'){vw.i=(vw.i+1)%vw.list.length;showVw()}else if(e.key==='ArrowLeft'){vw.i=(vw.i-1+vw.list.length)%vw.list.length;showVw()}});
+})();
 
 /* ═════════════════════ PLAYER ═════════════════════ */
 const pv=$('#pv'),player=$('#player');
 const pl={list:[],order:[],pos:0,shuffle:false,loop:false,url:null,open:false};
 function openPlayer(list,i,shuffle){
   pl.list=list.slice();pl.shuffle=!!shuffle;
-  pl.order=list.map((_,k)=>k);
-  if(pl.shuffle)shuffleArr(pl.order);
-  pl.pos=pl.shuffle?0:i;
+  pl.order=list.map((_,k)=>k);if(pl.shuffle)shuffleArr(pl.order);
+  pl.pos=pl.shuffle?0:Math.max(0,i);
   player.classList.remove('hidden');pl.open=true;
   pv.muted=!!cfg.muted;syncPBtns();
   pushOverlay(()=>closePlayer(true));
@@ -762,7 +1458,7 @@ async function loadCur(){
   if(pl.url)URL.revokeObjectURL(pl.url);
   pl.url=URL.createObjectURL(f);pv.src=pl.url;pv.loop=pl.loop;
   pv.play().catch(()=>{});
-  $('#pTitle').textContent=v.name;$('#pPos').textContent=(pl.pos+1)+' / '+pl.list.length;
+  $('#pTitle').textContent=srcName(v);$('#pPos').textContent=(pl.pos+1)+' / '+pl.list.length;
   if('mediaSession' in navigator){try{navigator.mediaSession.metadata=new MediaMetadata({title:document.title});navigator.mediaSession.setActionHandler('nexttrack',()=>step(1));navigator.mediaSession.setActionHandler('previoustrack',()=>step(-1))}catch(e){}}
 }
 function step(n){if(!pl.list.length)return;pl.pos=(pl.pos+n+pl.order.length)%pl.order.length;loadCur()}
@@ -781,7 +1477,7 @@ function flash(t){const f=$('#pFlash');f.textContent=t;f.classList.add('on');cle
 pv.addEventListener('ended',()=>{if(!pl.loop)step(1)});
 pv.addEventListener('play',syncPBtns);pv.addEventListener('pause',()=>{syncPBtns();showUI()});
 pv.addEventListener('timeupdate',()=>{if(pv.duration){$('#pseek').value=pv.currentTime/pv.duration*1000;$('#pCur').textContent=fmt(pv.currentTime);$('#pDur').textContent=fmt(pv.duration)}});
-pv.addEventListener('error',()=>{flash('Can\'t play this format. Skipping');setTimeout(()=>step(1),900)});
+pv.addEventListener('error',()=>{if(!pl.open||!pv.getAttribute('src'))return;flash('Can\'t play this format. Skipping');setTimeout(()=>step(1),900)});
 $('#pseek').addEventListener('input',e=>{if(pv.duration)pv.currentTime=e.target.value/1000*pv.duration;showUI()});
 $('#pClose').onclick=()=>closePlayer(false);
 $('#pPlay').onclick=()=>{pv.paused?pv.play():pv.pause();showUI()};
@@ -795,7 +1491,6 @@ $('#pLoop').onclick=()=>{pl.loop=!pl.loop;pv.loop=pl.loop;syncPBtns();flash(pl.l
 $('#pMute').onclick=()=>{pv.muted=!pv.muted;cfg.muted=pv.muted;saveCfg();syncPBtns();showUI()};
 $('#pFs').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else{await player.requestFullscreen();if(pv.videoWidth>pv.videoHeight&&screen.orientation&&screen.orientation.lock)screen.orientation.lock('landscape').catch(()=>{})}}catch(e){}showUI()};
 $('#pPuz').onclick=()=>{const l=pl.list,i=pl.order[pl.pos];closePlayer(true);overlays.pop();openPuzzle(l,i,true)};
-// gestures on the video: tap = show/hide controls, double-tap sides = ±10s, swipe = next/prev
 (()=>{let sx,sy,st,lastTap=0,tapTimer;
   pv.addEventListener('touchstart',e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY;st=Date.now()},{passive:true});
   pv.addEventListener('touchend',e=>{
@@ -810,7 +1505,7 @@ $('#pPuz').onclick=()=>{const l=pl.list,i=pl.order[pl.pos];closePlayer(true);ove
       return}
     lastTap=now;tapTimer=setTimeout(()=>{player.classList.contains('hide-ui')?showUI():player.classList.add('hide-ui')},300);
   });
-  pv.addEventListener('click',e=>{if(e.pointerType==='mouse'||!('ontouchstart' in window)){player.classList.contains('hide-ui')?showUI():player.classList.add('hide-ui')}});
+  pv.addEventListener('click',()=>{if(!('ontouchstart' in window)){player.classList.contains('hide-ui')?showUI():player.classList.add('hide-ui')}});
 })();
 document.addEventListener('keydown',e=>{
   if(!pl.open)return;
@@ -819,9 +1514,9 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='n')step(1);else if(e.key==='p')step(-1);
 });
 
-/* ═════════════════════ SLIDE PUZZLE (ported) ═════════════════════ */
+/* ═════════════════════ SLIDE PUZZLE (videos + photos) ═════════════════════ */
 const pzV=$('#pzVideo'),pzC=$('#pzCanvas'),pzX=pzC.getContext('2d');
-const pz={g:cfg.grid||3,tiles:[],blank:0,moves:0,start:0,timer:null,solved:false,raf:0,url:null,list:[],open:false,w:0,h:0};
+const pz={g:cfg.grid||3,tiles:[],blank:0,moves:0,start:0,timer:null,solved:false,raf:0,url:null,list:[],open:false,w:0,h:0,src:null};
 function openPuzzle(list,i,reuseHistory){
   pz.list=list;$('#puzzle').classList.remove('hidden');pz.open=true;
   if(reuseHistory)overlays.push(()=>closePuzzle(true));else pushOverlay(()=>closePuzzle(true));
@@ -833,19 +1528,23 @@ async function loadPz(v){
   cancelAnimationFrame(pz.raf);clearInterval(pz.timer);
   let f;try{f=await fileOf(v)}catch(e){vToast('Could not open file');return}
   if(pz.url)URL.revokeObjectURL(pz.url);
-  pz.url=URL.createObjectURL(f);pzV.src=pz.url;pzV.play().catch(()=>{});
-  pzV.addEventListener('loadedmetadata',()=>{sizePz();resetPz();shufflePz();loopPz()},{once:true});
+  pz.url=URL.createObjectURL(f);
+  const go=()=>{sizePz();resetPz();shufflePz();loopPz()};
+  if(srcKind(v)==='i'){pzV.pause();pzV.removeAttribute('src');const im=new Image();im.onload=()=>{pz.src=im;go()};im.src=pz.url}
+  else{pz.src=pzV;pzV.src=pz.url;pzV.play().catch(()=>{});pzV.addEventListener('loadedmetadata',go,{once:true})}
 }
+const srcW=()=>pz.src?(pz.src.videoWidth||pz.src.naturalWidth||0):0,srcH=()=>pz.src?(pz.src.videoHeight||pz.src.naturalHeight||0):0;
+const srcReady=()=>pz.src&&(pz.src===pzV?pzV.readyState>=2:pz.src.complete)&&srcW();
 function closePuzzle(fromPop){
   if(!pz.open)return;pz.open=false;
   cancelAnimationFrame(pz.raf);clearInterval(pz.timer);
-  pzV.pause();pzV.removeAttribute('src');pzV.load();if(pz.url){URL.revokeObjectURL(pz.url);pz.url=null}
+  pzV.pause();pzV.removeAttribute('src');pzV.load();pz.src=null;if(pz.url){URL.revokeObjectURL(pz.url);pz.url=null}
   $('#puzzle').classList.add('hidden');
   if(!fromPop)popOverlay();
 }
 function sizePz(){
-  if(!pzV.videoWidth)return;
-  const wrap=$('#pzWrap').getBoundingClientRect(),vw=pzV.videoWidth,vh=pzV.videoHeight;
+  if(!srcW())return;
+  const wrap=$('#pzWrap').getBoundingClientRect(),vw=srcW(),vh=srcH();
   const maxW=wrap.width-12,maxH=wrap.height-12;let w=maxW,h=w*vh/vw;if(h>maxH){h=maxH;w=h*vw/vh}
   const dpr=Math.min(2,window.devicePixelRatio||1);
   pz.w=Math.round(w*dpr);pz.h=Math.round(h*dpr);pzC.width=pz.w;pzC.height=pz.h;pzC.style.width=Math.round(w)+'px';pzC.style.height=Math.round(h)+'px';
@@ -865,14 +1564,14 @@ function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);
 function loopPz(){
   cancelAnimationFrame(pz.raf);
   (function f(){
-    if(pzV.readyState>=2&&pzV.videoWidth){
-      const c=pzX,W=pz.w,H=pz.h,g=pz.g,vw=pzV.videoWidth,vh=pzV.videoHeight,tw=W/g,th=H/g,gap=pz.solved?0:Math.max(2,Math.round(tw*0.015));
-      c.clearRect(0,0,W,H);
+    if(srcReady()){
+      const c=pzX,W=pz.w,Hh=pz.h,g=pz.g,vw=srcW(),vh=srcH(),tw=W/g,th=Hh/g,gap=pz.solved?0:Math.max(2,Math.round(tw*0.015));
+      c.clearRect(0,0,W,Hh);
       for(let i=0;i<g*g;i++){
         if(i===pz.blank&&!pz.solved)continue;
         const t=(pz.solved&&i===pz.blank)?i:pz.tiles[i],dr=Math.floor(i/g),dc=i%g,sr=Math.floor(t/g),sc=t%g;
         const dx=dc*tw+gap/2,dy=dr*th+gap/2,dw=tw-gap,dh=th-gap;
-        c.save();rr(c,dx,dy,dw,dh,pz.solved?0:5);c.clip();c.drawImage(pzV,sc*vw/g,sr*vh/g,vw/g,vh/g,dx,dy,dw,dh);c.restore();
+        c.save();rr(c,dx,dy,dw,dh,pz.solved?0:5);c.clip();c.drawImage(pz.src,sc*vw/g,sr*vh/g,vw/g,vh/g,dx,dy,dw,dh);c.restore();
         if(!pz.solved){c.strokeStyle='rgba(245,166,35,.3)';c.lineWidth=1;rr(c,dx,dy,dw,dh,5);c.stroke()}
       }
     }
@@ -903,7 +1602,8 @@ $('#pzShuffle').onclick=$('#pzAgain').onclick=()=>{resetPz();shufflePz()};
 $('#pzNew').onclick=()=>{if(pz.list.length)loadPz(pz.list[Math.floor(Math.random()*pz.list.length)])};
 
 /* ═════════════════════ BOOT ═════════════════════ */
-if(localStorage.getItem('wg_dark')==='1')decoy.classList.add('dark');
+if(localStorage.getItem('wg_light')==='1')decoy.classList.add('light');
+try{const old=JSON.parse(localStorage.getItem('wg_game'));if(old&&old.day&&!games[old.day])games[old.day]={guesses:old.guesses||[],done:!!old.done,won:!!old.won}}catch(e){}
 loadGame();buildBoard();buildKbd();renderBoard();renderKeys();
 if(location.search.includes('shared=1'))history.replaceState(null,'',location.pathname);
 if(!cfg.hash){decoy.classList.add('hidden');$('#setup').classList.remove('hidden')}
