@@ -193,6 +193,17 @@ select.in{flex:0 0 auto}
 .lcard b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lcard small{font-size:11px;color:#7f9cf5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 a.lnk{color:#7f9cf5;word-break:break-all}
+.ic2 .sub{font-size:10px;color:#8b90a0;padding:0 7px 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fields{margin-top:12px;background:#171a22;border:1px solid #262a36;border-radius:12px;padding:2px 12px}
+.frow{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #222634;font-size:14px}.frow:last-child{border:0}
+.fk{color:#8b90a0;min-width:84px;flex-shrink:0}.fv{flex:1;word-break:break-word}
+.clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.mstrip{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;margin-top:8px}
+.mt.more{font-size:12px;color:#8b90a0}
+.hint{font-size:11px;color:#8b90a0;margin-top:6px;line-height:1.5}
+body.novis .th,body.novis .mt,body.novis .tn,body.novis .hero,body.novis .cal-th i,body.novis .ivp{background-image:none!important}
+body.novis .th.loaded,body.novis .mt.loaded{color:#3a4052!important;font-size:22px!important}
+.ph .visbtn{font-size:16px}
 .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
 .tag{padding:5px 10px;border-radius:999px;background:#222634;font-size:12px;cursor:pointer}
 
@@ -304,6 +315,7 @@ a.lnk{color:#7f9cf5;word-break:break-all}
 <div id="vault" class="hidden">
   <div class="vtop">
     <h1 id="vTitle">Vault</h1>
+    <button id="vVis" class="visbtn" aria-label="Show or hide photos">👁</button>
     <button id="vSettings" aria-label="Settings">⚙</button>
     <button id="vLock" aria-label="Lock">🔒</button>
   </div>
@@ -391,7 +403,7 @@ const shortDate=ds=>new Date(ds+'T12:00').toLocaleDateString(undefined,{weekday:
 
 /* ───────── config ───────── */
 const CFG_KEY='wg_cfg';
-const DEFAULTS={title:'Wordle',taps:1,autolock:true,deep:true,grid:3,muted:false,tab:'cal',inbox:'Inbox',inboxMove:true};
+const DEFAULTS={title:'Wordle',taps:1,autolock:true,deep:true,grid:3,muted:false,tab:'cal',inbox:'Inbox',inboxMove:true,hideVis:false};
 let cfg=null;
 try{cfg=JSON.parse(localStorage.getItem(CFG_KEY))}catch(e){}
 cfg=Object.assign({},DEFAULTS,cfg||{});
@@ -568,6 +580,7 @@ async function unlock(gesture){
   $('#vault').classList.remove('hidden');
   document.querySelector('meta[name=theme-color]').content='#0d0f14';document.body.style.background='#0d0f14';
   pushOverlay(()=>lock());
+  showVis=!cfg.hideVis;applyVisUI();
   await restoreVault(gesture);
   render();
 }
@@ -580,6 +593,7 @@ function lock(){
   showDecoy();
 }
 $('#vLock').onclick=()=>lock();
+$('#vVis').onclick=()=>setVis(!showVis);
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){
     document.querySelectorAll('video').forEach(v=>v.pause());
@@ -764,14 +778,23 @@ const cat=id=>H.cats.find(c=>c.id===id)||{id:'',name:'Uncategorized',icon:'🏷�
 function updateRefs(oldP,newP){// keep journal links working after rename/move in Files
   if(!H)return;let ch=false;
   const fix=r=>{if(r&&r.p===oldP){r.p=newP;r.n=newP.split('/').pop();ch=true}};
-  Object.values(H.posts).forEach(p=>(p.media||[]).forEach(fix));Object.values(H.items).forEach(i=>fix(i.cover));
+  Object.values(H.posts).forEach(p=>(p.media||[]).forEach(fix));Object.values(H.items).forEach(i=>{fix(i.cover);(i.media||[]).forEach(fix)});
   if(ch)saveHub();
 }
 
 /* ═════════════════════ THUMBNAILS (browser storage only) ═════════════════════ */
 const thumbQ=[];let thumbBusy=0;
 const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){io.unobserve(e.target);thumbQ.push(e.target);pumpThumbs()}}),{rootMargin:'300px'});
-function lazyThumb(elm,src){elm._src=src;io.observe(elm)}
+let showVis=true;
+function lazyThumb(elm,src){elm._src=src;if(!showVis){if(!elm.textContent&&!elm.children.length&&elm.tagName!=='I')elm.textContent=srcKind(src)==='v'?'🎬':'🖼';return}io.observe(elm)}
+function applyVisUI(){document.body.classList.toggle('novis',!showVis);document.querySelectorAll('.visbtn').forEach(b=>{b.textContent=showVis?'👁':'🙈';b.title=showVis?'Hide photos & videos':'Show photos & videos'})}
+function setVis(v){
+  showVis=v;applyVisUI();
+  if(!v){closeViewer(false);closePlayer(false);closePuzzle(false);document.querySelectorAll('video').forEach(x=>x.pause())}
+  panels.slice().forEach(p=>p.refresh());render();
+  vToast(v?'Photos & videos shown':'Photos & videos hidden',1400);
+}
+function askVis(fn){sheet('Photos & videos are hidden',[{label:'👁 Show them now',fn:()=>{setVis(true);fn&&fn()}}])}
 async function pumpThumbs(){if(thumbBusy>=2)return;thumbBusy++;while(thumbQ.length){const c=thumbQ.shift();if(!c.isConnected||locked)continue;try{await makeThumb(c)}catch(e){}}thumbBusy--}
 async function makeThumb(elm){
   const s=elm._src;let f;
@@ -821,7 +844,8 @@ const panels=[];
 function openPanel(title,build,opt){
   opt=opt||{};
   const p=el('div','panel'),hd=el('div','ph'),back=el('button','back','‹'),h2=el('h2','',esc(title)),acts=el('div','row2'),body=el('div','pb'),foot=el('div','pf hidden');
-  hd.append(back,h2,acts);p.append(hd,body,foot);document.body.append(p);
+  const vb=el('button','back visbtn',showVis?'👁':'🙈');vb.onclick=()=>setVis(!showVis);
+  hd.append(back,h2,acts,vb);p.append(hd,body,foot);applyVisUI();document.body.append(p);
   const P={el:p,body,acts,foot,closed:false,urls:[],setTitle:t=>h2.textContent=t,
     free(){p.querySelectorAll('video').forEach(v=>{v.pause();v.removeAttribute('src')});P.urls.forEach(u=>URL.revokeObjectURL(u));P.urls.length=0},
     close(fromPop){if(P.closed)return;P.closed=true;P.free();p.remove();const i=panels.indexOf(P);if(i>-1)panels.splice(i,1);opt.onclose&&opt.onclose();if(!fromPop)popOverlay()},
@@ -854,7 +878,7 @@ async function render(){
   if(!H){main.innerHTML='<div class="empty">Loading…</div>';await loadHub();if(tok!==renderTok)return}
   const y=main.scrollTop;
   if(cfg.tab==='files')await renderFiles(main,tok);
-  else{main.innerHTML='';if(cfg.tab==='items')renderItems(main);else await renderCal(main)}
+  else{const box=el('div');if(cfg.tab==='items')renderItems(box);else await renderCal(box);if(tok!==renderTok)return;main.innerHTML='';main.append(box)}
   if(tok===renderTok)main.scrollTop=y;
 }
 
@@ -917,7 +941,7 @@ function postCard(p,P){
   const hd=el('div','post-h','<span class="tm">'+esc(p.time||'')+'</span>');
   if(!readOnly){const e=el('button','sbtn','Edit');e.onclick=()=>openEditor(p);hd.append(e)}
   c.append(hd);
-  if(p.text){const t=el('div','post-txt',linkify(p.text));t.querySelectorAll('a.lnk').forEach(a=>a.onclick=e=>{e.preventDefault();copyText(a.href)});c.append(t)}
+  if(p.text){const t=el('div','post-txt',linkify(p.text));wireLinks(t);c.append(t)}
   const vids=(p.media||[]).filter(m=>srcKind(m)==='v'),imgs=(p.media||[]).filter(m=>srcKind(m)!=='v');
   vids.forEach((m,i)=>c.append(inlineVideo({src:m,name:srcName(m),full:()=>openPlayer(vids,i,false),more:readOnly?null:()=>mediaActions(m,p.id)},P)));
   if(imgs.length){const g=el('div','mgrid');imgs.forEach((m,i)=>g.append(mediaTile(m,{onclick:()=>openViewer(imgs,i,{post:p.id})})));c.append(g)}
@@ -930,7 +954,7 @@ function inlineVideo(o,P){
   const w=el('div','ivid','<div class="ivbox"><div class="ivp" data-dur></div><button class="ivplay">▶</button></div><div class="ivbar"><span class="ivn">🎬 '+esc(o.name||'video')+'</span>'+(o.more?'<button class="sbtn ivmore">⋯</button>':'')+(o.full?'<button class="sbtn ivfull">⛶ Full</button>':'')+'</div>');
   const poster=w.querySelector('.ivp');if(o.src)lazyThumb(poster,o.src);
   w.querySelector('.ivplay').onclick=async e=>{
-    e.stopPropagation();let u=o.url;
+    e.stopPropagation();if(!showVis)return askVis();let u=o.url;
     if(!u){let f;try{f=await fileOf(o.src)}catch(x){return vToast('File is missing (moved or deleted?)')}u=URL.createObjectURL(f);if(P)P.urls.push(u);else setTimeout(()=>URL.revokeObjectURL(u),3600000)}
     const v=el('video','ivv');v.controls=true;v.playsInline=true;v.preload='auto';v.src=u;
     v.addEventListener('play',()=>document.querySelectorAll('video').forEach(x=>{if(x!==v)x.pause()}));
@@ -951,18 +975,34 @@ async function copyText(t){
   if(!ok){const ta=el('textarea');ta.value=t;ta.style.cssText='position:fixed;opacity:0;top:0';document.body.append(ta);ta.select();try{ok=document.execCommand('copy')}catch(x){}ta.remove()}
   vToast(ok?'Link copied: paste it in an Incognito tab':'Could not copy. Long-press the link instead');
 }
-function openExternal(url){
-  sheet(url,[{label:'📋 Copy link (then paste in an Incognito tab)',fn:()=>copyText(url)},
-    {label:'↗ Open in a normal tab (goes into Chrome history)',fn:()=>window.open(url,'_blank','noopener,noreferrer')}]);
+const APPS=[[/(^|\.)instagram\.com$|(^|\.)instagr\.am$/,'com.instagram.android','Instagram','📸'],[/(^|\.)tiktok\.com$/,'com.zhiliaoapp.musically','TikTok','🎵'],
+  [/(^|\.)youtube\.com$|(^|\.)youtu\.be$/,'com.google.android.youtube','YouTube','▶️'],[/(^|\.)x\.com$|(^|\.)twitter\.com$/,'com.twitter.android','X','✖️'],
+  [/(^|\.)threads\.(net|com)$/,'com.instagram.barcelona','Threads','🧵'],[/(^|\.)reddit\.com$|(^|\.)redd\.it$/,'com.reddit.frontpage','Reddit','👽'],
+  [/(^|\.)facebook\.com$|(^|\.)fb\.watch$/,'com.facebook.katana','Facebook','📘'],[/(^|\.)pinterest\.[a-z.]+$|(^|\.)pin\.it$/,'com.pinterest','Pinterest','📌'],
+  [/(^|\.)spotify\.com$/,'com.spotify.music','Spotify','🎧'],[/(^|\.)snapchat\.com$/,'com.snapchat.android','Snapchat','👻']];
+function appFor(url){try{const u=new URL(url);const a=APPS.find(x=>x[0].test(u.hostname));return a?{pkg:a[1],name:a[2],icon:a[3],u}:null}catch(e){return null}}
+const linkIcon=url=>{const a=appFor(url);return a?a.icon:isDirectVideo(url)?'🎬':'🔗'};
+function openInApp(url){
+  const a=appFor(url);if(!a)return;const u=a.u;
+  location.href='intent://'+u.host+u.pathname+u.search+u.hash+'#Intent;scheme='+u.protocol.replace(':','')+';package='+a.pkg+';S.browser_fallback_url='+encodeURIComponent(url)+';end';
 }
+function linkSheet(url){
+  const a=appFor(url),items=[{label:'📋 Copy link (then paste in an Incognito tab)',fn:()=>copyText(url)}];
+  if(a)items.push({label:a.icon+' Open in the '+a.name+' app',fn:()=>openInApp(url)});
+  items.push({label:'↗ Open in browser (goes into Chrome history)',fn:()=>window.open(url,'_blank','noopener,noreferrer')});
+  sheet(url,items);
+}
+const openExternal=linkSheet;
 function linkCard(l,P){
   let host='';try{host=new URL(l.url).hostname.replace(/^www\./,'')}catch(e){}
   const wrap=el('div'),row=el('div','lrow');
-  const a=el('a','lcard','<span class="lic">'+(isDirectVideo(l.url)?'🎬':'🔗')+'</span><span class="lt"><b>'+esc(l.title||host||l.url)+'</b><small>'+esc(l.url)+'</small></span>');
-  a.href=l.url;a.target='_blank';a.rel='noopener noreferrer';a.onclick=e=>{e.preventDefault();copyText(l.url)};
+  const ap=appFor(l.url);
+  const a=el('a','lcard','<span class="lic">'+linkIcon(l.url)+'</span><span class="lt"><b>'+esc(l.title||host||l.url)+'</b><small>'+esc(l.url)+'</small></span>');
+  a.href=l.url;a.target='_blank';a.rel='noopener noreferrer';a.onclick=e=>{e.preventDefault();linkSheet(l.url)};
   const cp=el('button','sbtn','📋');cp.title='Copy';cp.onclick=()=>copyText(l.url);
-  const op=el('button','sbtn','↗');op.title='Open';op.onclick=()=>openExternal(l.url);
-  row.append(a,cp,op);wrap.append(row);
+  row.append(a,cp);
+  if(ap){const ob=el('button','sbtn',ap.icon);ob.title='Open in '+ap.name;ob.onclick=()=>openInApp(l.url);row.append(ob)}
+  wrap.append(row);
   if(isDirectVideo(l.url))wrap.append(inlineVideo({url:l.url,name:l.title||host},P));
   return wrap;
 }
@@ -981,8 +1021,8 @@ function chooseEntry(title,cb){
   });
 }
 function putRef(ref,target,ds){
-  if(target){target.media=target.media||[];if(!target.media.some(m=>m.p===ref.p))target.media.push(ref);target.updated=Date.now();H.posts[target.id]=target}
-  else{const p={id:uid(),date:ds,time:nowTime(),text:'',media:[ref],items:[],links:[],created:Date.now(),updated:Date.now()};H.posts[p.id]=p}
+  if(target){target.media=target.media||[];if(!target.media.some(m=>m.p===ref.p))target.media.push(ref);target.updated=Date.now();H.posts[target.id]=target;return target}
+  const p={id:uid(),date:ds,time:nowTime(),text:'',media:[ref],items:[],links:[],created:Date.now(),updated:Date.now()};H.posts[p.id]=p;return p;
 }
 function mediaActions(ref,postId,after){
   ref={p:ref.p||ref.path,k:srcKind(ref),n:srcName(ref)};
@@ -1018,55 +1058,68 @@ function openDay(ds){
   DP.dayView=ds;
 }
 
+/* ── shared editor sections (entries + items) ── */
+const addUniq=(arr,refs)=>refs.forEach(r=>{if(!arr.some(m=>m.p===r.p))arr.push(r)});
+function stagedTile(s,onRemove){
+  const k=kindOfBlob(s.blob),t=el('div','mt',k==='v'?'🎬':'🖼');
+  if(k!=='v'&&showVis){t.style.backgroundImage='url('+s.url+')';t.textContent=''}
+  t.append(el('span','vbadge','new'));const x=el('button','rm','✕');x.onclick=e=>{e.stopPropagation();onRemove()};t.append(x);return t;
+}
+function mediaSection(P,d,staged,mark,label){
+  P.body.append(el('div','lbl',label||'Photos & videos'));
+  const g=el('div','mgrid');
+  d.media.forEach((m,i)=>{const t=mediaTile(m);const x=el('button','rm','✕');x.onclick=e=>{e.stopPropagation();d.media.splice(i,1);mark();P.refresh()};t.append(x);t.onclick=()=>openViewer(d.media,i);g.append(t)});
+  staged.forEach((s,i)=>g.append(stagedTile(s,()=>{URL.revokeObjectURL(s.url);staged.splice(i,1);P.refresh()})));
+  if(g.children.length)P.body.append(g);
+  const mb=el('div','row2');mb.style.cssText='margin-top:8px;flex-wrap:wrap';
+  const fp=el('button','sbtn','📷 From phone');fp.onclick=()=>pickPhoneMedia(f=>{f.forEach(b=>staged.push({blob:b,url:URL.createObjectURL(b)}));mark();P.refresh()});
+  const fvv=el('button','sbtn','🎬 Vault videos');fvv.onclick=()=>openFilePicker(refs=>{addUniq(d.media,refs);mark();P.refresh()},{kind:'v'});
+  const fv=el('button','sbtn','📁 From vault');fv.onclick=()=>openFilePicker(refs=>{addUniq(d.media,refs);mark();P.refresh()});
+  mb.append(fp,fvv,fv);P.body.append(mb);
+  if(staged.length)P.body.append(el('p','hint','New files are copied into the vault when you save. The originals stay in your gallery, so delete them there if you want them gone.'));
+}
+function linksSection(P,d,mark){
+  P.body.append(el('div','lbl','Links'));
+  d.links.forEach((l,i)=>{const r=el('div','lrow');const a=el('div','lcard','<span class="lic">'+linkIcon(l.url)+'</span><span class="lt"><b>'+esc(l.title||'(tap to name)')+'</b><small>'+esc(l.url)+'</small></span>');
+    a.onclick=()=>{const t=prompt('Name for this link',l.title||'');if(t!=null){l.title=t.trim();mark();P.refresh()}};
+    const x=el('button','sbtn red','✕');x.onclick=()=>{d.links.splice(i,1);mark();P.refresh()};r.append(a,x);P.body.append(r)});
+  const lr=el('div','row2');lr.style.marginTop='8px';
+  const li=el('input','in');li.type='url';li.placeholder='Paste a link…';
+  const addL=v=>{const u=findUrls(v);if(!u.length)return vToast("That doesn't look like a link");u.forEach(x=>{if(!d.links.some(l=>l.url===x))d.links.push({url:x,title:''})});mark();P.refresh()};
+  li.onkeydown=e=>{if(e.key==='Enter')addL(li.value)};
+  const la=el('button','sbtn g','Add');la.onclick=()=>addL(li.value);
+  const lp=el('button','sbtn','📋 Paste');lp.onclick=async()=>{try{addL(await navigator.clipboard.readText())}catch(e){vToast('Long-press the box and choose Paste')}};
+  lr.append(li,la,lp);P.body.append(lr);
+}
+
 /* entry editor */
 function openEditor(post,defs){
   if(readOnly)return vToast('Read-only mode');
   const isNew=!post;
   const d=post?JSON.parse(JSON.stringify(post)):Object.assign({date:today(),time:nowTime(),text:'',media:[],items:[],links:[]},defs||{});
-  d.links=d.links||[];
-  const staged=[];// {blob,url}
-  let dirty=false;
+  d.links=d.links||[];d.media=d.media||[];d.items=d.items||[];
+  const staged=[];const mark=()=>{};
   const P=openPanel(isNew?'New entry':'Edit entry',P=>{
     const r=el('div','row2');
-    const di=el('input','in');di.type='date';di.value=d.date;di.onchange=()=>{d.date=di.value||d.date;dirty=true};
-    const ti=el('input','in');ti.type='time';ti.value=d.time||'';ti.onchange=()=>{d.time=ti.value;dirty=true};ti.style.flex='0 0 120px';
+    const di=el('input','in');di.type='date';di.value=d.date;di.onchange=()=>{d.date=di.value||d.date};
+    const ti=el('input','in');ti.type='time';ti.value=d.time||'';ti.onchange=()=>{d.time=ti.value};ti.style.flex='0 0 120px';
     r.append(di,ti);P.body.append(r);
     P.body.append(el('div','lbl','Reflection'));
-    const ta=el('textarea','fld');ta.placeholder='What happened today? How did it feel?';ta.value=d.text||'';ta.oninput=()=>{d.text=ta.value;dirty=true};P.body.append(ta);
-    P.body.append(el('div','lbl','Screenshots, photos & videos'));
-    const g=el('div','mgrid');
-    d.media.forEach((m,i)=>{const t=mediaTile(m);const x=el('button','rm','✕');x.onclick=e=>{e.stopPropagation();d.media.splice(i,1);dirty=true;P.refresh()};t.append(x);t.onclick=()=>openViewer(d.media,i);g.append(t)});
-    staged.forEach((s,i)=>{const t=el('div','mt',kindOfBlob(s.blob)==='v'?'🎬':'');if(kindOfBlob(s.blob)!=='v')t.style.backgroundImage='url('+s.url+')';t.append(el('span','vbadge','new'));const x=el('button','rm','✕');x.onclick=()=>{URL.revokeObjectURL(s.url);staged.splice(i,1);P.refresh()};t.append(x);g.append(t)});
-    P.body.append(g);
-    const mb=el('div','row2');mb.style.marginTop='8px';
-    const fp=el('button','sbtn','📷 From phone');fp.onclick=()=>pickPhoneMedia(f=>{f.forEach(b=>staged.push({blob:b,url:URL.createObjectURL(b)}));dirty=true;P.refresh()});
-    const fv=el('button','sbtn','📁 From vault');fv.onclick=()=>openFilePicker(refs=>{d.media.push(...refs);dirty=true;P.refresh()});
-    const fvv=el('button','sbtn','🎬 Videos');fvv.onclick=()=>openFilePicker(refs=>{d.media.push(...refs);dirty=true;P.refresh()},{kind:'v'});
-    mb.append(fp,fvv,fv);mb.style.flexWrap='wrap';P.body.append(mb);
-    P.body.append(el('div','lbl','Links'));
-    d.links.forEach((l,i)=>{const r=el('div','lrow');const a=el('div','lcard','<span class="lic">🔗</span><span class="lt"><b>'+esc(l.title||'(tap to name)')+'</b><small>'+esc(l.url)+'</small></span>');
-      a.onclick=()=>{const t=prompt('Name for this link',l.title||'');if(t!=null){l.title=t.trim();dirty=true;P.refresh()}};
-      const x=el('button','sbtn red','✕');x.onclick=()=>{d.links.splice(i,1);dirty=true;P.refresh()};r.append(a,x);P.body.append(r)});
-    const lr=el('div','row2');lr.style.marginTop='8px';
-    const li=el('input','in');li.type='url';li.placeholder='Paste a link…';
-    const addL=v=>{const u=findUrls(v);if(!u.length)return vToast("That doesn't look like a link");u.forEach(x=>d.links.push({url:x,title:''}));dirty=true;P.refresh()};
-    li.onkeydown=e=>{if(e.key==='Enter')addL(li.value)};
-    const la=el('button','sbtn g','Add');la.onclick=()=>addL(li.value);
-    const lp=el('button','sbtn','📋 Paste');lp.onclick=async()=>{try{addL(await navigator.clipboard.readText())}catch(e){vToast('Long-press the box and choose Paste')}};
-    lr.append(li,la,lp);P.body.append(lr);
-    if(staged.length)P.body.append(el('div','',`<p style="font-size:11px;color:#8b90a0;margin-top:6px">New files are copied into the vault when you save. The originals stay in your gallery, so delete them there if you want them gone.</p>`));
-    P.body.append(el('div','lbl','Items'));
-    const tg=el('div','tags');
-    d.items.forEach((id,i)=>{const it=H.items[id];if(!it)return;const b=el('span','tag',cat(it.cat).icon+' '+esc(it.name)+' ✕');b.onclick=()=>{d.items.splice(i,1);dirty=true;P.refresh()};tg.append(b)});
-    const ab=el('span','tag','＋ Tag item');ab.style.background='#1d2a1c';ab.onclick=()=>openItemPicker(d.items,ids=>{d.items=ids;dirty=true;P.refresh()});tg.append(ab);
+    const ta=el('textarea','fld');ta.placeholder='What happened today? How did it feel?';ta.value=d.text||'';ta.oninput=()=>{d.text=ta.value};P.body.append(ta);
+    P.body.append(el('div','lbl','Items in this entry'));
+    const tg=el('div','tags');tg.style.marginTop='0';
+    d.items.forEach((id,i)=>{const it=H.items[id];if(!it)return;const b=el('span','tag',cat(it.cat).icon+' '+esc(it.name)+' ✕');b.onclick=()=>{d.items.splice(i,1);P.refresh()};tg.append(b)});
+    const ab=el('span','tag','＋ Tag item');ab.style.background='#1d2a1c';ab.onclick=()=>openItemPicker(d.items,ids=>{d.items=ids;P.refresh()});tg.append(ab);
     P.body.append(tg);
+    mediaSection(P,d,staged,mark,'Screenshots, photos & videos');
+    linksSection(P,d,mark);
     P.foot.classList.remove('hidden');
     if(!isNew){const del=el('button','sbtn red','Delete');del.style.flex='0 0 auto';del.onclick=()=>{if(!confirm('Delete this entry? (Attached files stay in the vault.)'))return;delete H.posts[post.id];saveHub();P.noAutoRefresh=true;P.close(false);setTimeout(refreshAll,50)};P.foot.append(del)}
     const sv=el('button','sbtn g','Save');sv.onclick=async()=>{
       if(!d.text.trim()&&!d.media.length&&!staged.length&&!d.items.length&&!d.links.length)return vToast('Write something or add a photo first');
       sv.disabled=true;sv.textContent='Saving…';
       if(staged.length){const refs=await storeMedia(staged.map(s=>s.blob),d.date);if(!refs){sv.disabled=false;sv.textContent='Save';return}d.media.push(...refs);staged.forEach(s=>URL.revokeObjectURL(s.url));staged.length=0}
-      dirty=false;P.noAutoRefresh=true;P.close(false);
+      P.noAutoRefresh=true;P.close(false);
       setTimeout(()=>{addPost(Object.assign(post||{},d));if(isNew&&!panels.some(x=>x.dayView===d.date))openDay(d.date)},60);
     };
     P.foot.append(sv);
@@ -1076,23 +1129,24 @@ function openEditor(post,defs){
 
 /* ─────────── ITEMS ─────────── */
 let iq='',icat='all',isort='recent';
+function itemStats(){const s={};Object.values(H.posts).forEach(p=>(p.items||[]).forEach(id=>{const x=s[id]||(s[id]={n:0,last:''});x.n++;if(p.date>x.last)x.last=p.date}));return s}
 function itemCards(list,onclick,selected){
-  const g=el('div','igrid');
-  const counts={};Object.values(H.posts).forEach(p=>(p.items||[]).forEach(id=>counts[id]=(counts[id]||0)+1));
+  const st=itemStats(),g=el('div','igrid');
   list.forEach(it=>{
-    const c=el('div','ic2'+(selected&&selected.includes(it.id)?' sel':''),'<div class="th">'+cat(it.cat).icon+'</div><div class="nm">'+esc(it.name)+'</div>'+(counts[it.id]?'<span class="cnt">'+counts[it.id]+'</span>':''));
+    const x=st[it.id],nm=(it.media||[]).length,nv=(it.media||[]).filter(m=>srcKind(m)==='v').length;
+    const c=el('div','ic2'+(selected&&selected.includes(it.id)?' sel':''),'<div class="th">'+cat(it.cat).icon+'</div><div class="nm">'+(it.pinned?'⭐ ':'')+esc(it.name)+'</div><div class="sub">'+(x?x.n+(x.n>1?' entries':' entry'):'no entries')+(nv?' · 🎬'+nv:'')+(nm-nv?' · 🖼'+(nm-nv):'')+'</div>');
     if(it.cover)lazyThumb(c.querySelector('.th'),it.cover);
     c.onclick=()=>onclick(it,c);g.append(c);
   });
-  return{g,counts};
+  return{g};
 }
 function filteredItems(q,cid,sort){
-  const counts={},last={};Object.values(H.posts).forEach(p=>(p.items||[]).forEach(id=>{counts[id]=(counts[id]||0)+1;if(!last[id]||p.date>last[id])last[id]=p.date}));
-  let l=Object.values(H.items).filter(it=>(cid==='all'||it.cat===cid)&&(!q||it.name.toLowerCase().includes(q.toLowerCase())));
+  const st=itemStats(),k=it=>st[it.id]||{n:0,last:''};q=(q||'').toLowerCase();
+  let l=Object.values(H.items).filter(it=>(cid==='all'||it.cat===cid)&&(!q||it.name.toLowerCase().includes(q)||(it.notes||'').toLowerCase().includes(q)||(it.fields||[]).some(f=>((f.k||'')+' '+(f.v||'')).toLowerCase().includes(q))));
   if(sort==='name')l.sort((a,b)=>a.name.localeCompare(b.name));
-  else if(sort==='most')l.sort((a,b)=>(counts[b.id]||0)-(counts[a.id]||0));
-  else l.sort((a,b)=>(last[b.id]||'0'+b.created).localeCompare(last[a.id]||'0'+a.created));
-  return l;
+  else if(sort==='most')l.sort((a,b)=>k(b).n-k(a).n);
+  else l.sort((a,b)=>(k(b).last||'').localeCompare(k(a).last||'')||(b.updated||b.created||0)-(a.updated||a.created||0));
+  return l.sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0));
 }
 function catChips(curId,onpick){
   const ch=el('div','chips');
@@ -1101,70 +1155,118 @@ function catChips(curId,onpick){
 }
 function renderItems(main){
   const r=el('div','row2');r.style.marginBottom='8px';
-  const s=el('input','in');s.placeholder='Search items…';s.value=iq;
+  const s=el('input','in');s.placeholder='Search items, notes, fields…';s.value=iq;
   s.oninput=()=>{iq=s.value;clearTimeout(s._t);s._t=setTimeout(()=>{renderItemsGrid()},200)};
   const so=el('select','in','<option value="recent">Recent</option><option value="most">Most logged</option><option value="name">A–Z</option>');so.value=isort;so.onchange=()=>{isort=so.value;renderItemsGrid()};
   const nb=el('button','sbtn g','＋ New');nb.onclick=()=>openItemEditor(null);
   r.append(s,so);if(!readOnly)r.append(nb);main.append(r);
   main.append(catChips(icat,id=>{icat=id;render()}));
-  const holder=el('div');holder.id='itemsHolder';main.append(holder);
+  const holder=el('div');holder.id='itemsHolder';main.append(holder);itemsHolder=holder;
   renderItemsGrid();
 }
+let itemsHolder=null;
 function renderItemsGrid(){
-  const h=$('#itemsHolder');if(!h)return;h.innerHTML='';
+  const h=itemsHolder;if(!h)return;h.innerHTML='';
   const l=filteredItems(iq,icat,isort);
-  if(!l.length){h.append(el('div','empty','<div class="big">🏷️</div>'+(Object.keys(H.items).length?'No items match.':'No items yet.<br>Items are the people, places and things you tag in journal entries.')));return}
+  if(!l.length){h.append(el('div','empty','<div class="big">🏷️</div>'+(Object.keys(H.items).length?'No items match.':'No items yet.<br>Items are the people, places, shows and things you reference in journal entries. Each one gets its own page with videos, photos, links and notes.')));return}
   h.append(itemCards(l,it=>openItem(it.id)).g);
 }
+function wireLinks(n){n.querySelectorAll('a.lnk').forEach(a=>a.onclick=e=>{e.preventDefault();e.stopPropagation();linkSheet(a.href)})}
 function openItem(id){
   const IP=openPanel('',P=>{
     const it=H.items[id];if(!it){P.body.append(el('div','empty','Item deleted.'));return}
+    it.media=it.media||[];it.links=it.links||[];it.fields=it.fields||[];
     P.setTitle(it.name);
-    if(!readOnly){const e=el('button','sbtn','Edit');e.onclick=()=>openItemEditor(id);P.acts.append(e)}
-    const hero=el('div','hero',cat(it.cat).icon);if(it.cover){lazyThumb(hero,it.cover);hero.onclick=()=>openViewer([it.cover],0)}P.body.append(hero);
-    P.body.append(el('div','',`<div style="font-size:22px;font-weight:800">${esc(it.name)}</div><div style="color:#8b90a0;font-size:13px;margin-top:2px">${cat(it.cat).icon} ${esc(cat(it.cat).name)}</div>`));
-    if(it.notes){const n=el('div','post-txt',esc(it.notes));n.style.marginTop='10px';P.body.append(n)}
-    const ps=itemPosts(id);
-    const days=[...new Set(ps.map(p=>p.date))];
-    P.body.append(el('div','lbl','Logged on '+days.length+' day'+(days.length!==1?'s':'')+(days.length?' · first '+shortDate(days[days.length-1]):'')));
-    const allMedia=[].concat(...ps.map(p=>p.media||[]));
-    if(allMedia.length){const g=el('div','mgrid');allMedia.slice(0,12).forEach((m,i)=>g.append(mediaTile(m,{onclick:()=>openViewer(allMedia,i)})));P.body.append(g);if(allMedia.length>12)P.body.append(el('div','',`<p style="font-size:12px;color:#8b90a0;margin-top:6px">+${allMedia.length-12} more in the entries below</p>`))}
-    if(!ps.length)P.body.append(el('div','empty','Not tagged in any entry yet.'));
+    if(!readOnly){const pin=el('button','sbtn',it.pinned?'⭐':'☆');pin.title='Pin to top';pin.onclick=()=>{it.pinned=!it.pinned;it.updated=Date.now();saveHub();refreshAll()};
+      const e=el('button','sbtn','Edit');e.onclick=()=>openItemEditor(id);P.acts.append(pin,e)}
+    const hero=el('div','hero',cat(it.cat).icon);
+    if(it.cover){lazyThumb(hero,it.cover);hero.onclick=()=>openViewer([it.cover],0,{item:id})}
+    P.body.append(hero);
+    P.body.append(el('div','',`<div style="font-size:22px;font-weight:800">${it.pinned?'⭐ ':''}${esc(it.name)}</div><div style="color:#8b90a0;font-size:13px;margin-top:2px">${cat(it.cat).icon} ${esc(cat(it.cat).name)}</div>`));
+    const ps=itemPosts(id),days=[...new Set(ps.map(p=>p.date))],entryMediaN=ps.reduce((a,p)=>a+(p.media||[]).length,0);
+    const sr=el('div','stat-row','<div class="stat"><b>'+ps.length+'</b><span>entries</span></div><div class="stat"><b>'+days.length+'</b><span>days</span></div><div class="stat"><b>'+(it.media.length+entryMediaN)+'</b><span>photos & videos</span></div>');sr.style.marginTop='12px';P.body.append(sr);
+    if(it.fields.length){const f=el('div','fields');it.fields.forEach(x=>f.append(el('div','frow','<span class="fk">'+esc(x.k||'')+'</span><span class="fv">'+linkify(x.v||'')+'</span>')));wireLinks(f);P.body.append(f)}
+    if(it.notes){const n=el('div','post-txt',linkify(it.notes));n.style.marginTop='12px';wireLinks(n);P.body.append(n)}
+    const vids=it.media.filter(m=>srcKind(m)==='v'),imgs=it.media.filter(m=>srcKind(m)!=='v');
+    if(vids.length||imgs.length){
+      P.body.append(el('div','lbl','Videos & photos'));
+      vids.forEach((m,i)=>P.body.append(inlineVideo({src:m,name:srcName(m),full:()=>openPlayer(vids,i,false),more:readOnly?null:()=>itemMediaActions(m,id)},P)));
+      if(imgs.length){const g=el('div','mgrid');imgs.forEach((m,i)=>g.append(mediaTile(m,{onclick:()=>openViewer(imgs,i,{item:id})})));P.body.append(g)}
+    }
+    if(it.links.length){P.body.append(el('div','lbl','Links'));it.links.forEach(l=>P.body.append(linkCard(l,P)))}
+    P.body.append(el('div','lbl','In your journal'+(days.length?' · since '+shortDate(days[days.length-1]):'')));
+    if(!ps.length)P.body.append(el('div','empty','Not referenced in any entry yet.<br>Tag it from an entry, or tap ✍️ below.'));
     ps.forEach(p=>{
-      const li=el('div','li','<div class="tn">📝</div><div class="grow"><div class="t">'+esc(shortDate(p.date))+(p.time?' · '+esc(p.time):'')+'</div><div class="s">'+esc(p.text||((p.media||[]).length+' photo/video'))+'</div></div>');
-      if((p.media||[])[0]){const tn=li.querySelector('.tn');tn.textContent='';lazyThumb(tn,p.media[0])}
-      li.onclick=()=>openDay(p.date);P.body.append(li);
+      const c=el('div','post');c.style.cursor='pointer';
+      c.append(el('div','post-h','<span class="tm">'+esc(shortDate(p.date))+(p.time?' · '+esc(p.time):'')+'</span><span style="color:#8b90a0">›</span>'));
+      if(p.text){const t=el('div','post-txt clamp',linkify(p.text));wireLinks(t);c.append(t)}
+      const pm=p.media||[];
+      if(pm.length){const g=el('div','mstrip');pm.slice(0,6).forEach((m,i)=>g.append(mediaTile(m,{onclick:e=>{e.stopPropagation();openViewer(pm,i,{post:p.id})}})));if(pm.length>6)g.append(el('div','mt more','+'+(pm.length-6)));c.append(g)}
+      if((p.links||[]).length)c.append(el('div','hint','🔗 '+p.links.length+' link'+(p.links.length>1?'s':'')));
+      c.onclick=e=>{if(e.target.closest('a,.mt'))return;openDay(p.date)};
+      P.body.append(c);
     });
-    if(!readOnly){P.foot.classList.remove('hidden');const w=el('button','sbtn g','✍️ New entry with this');w.onclick=()=>openEditor(null,{date:today(),items:[id]});P.foot.append(w)}
+    if(!readOnly){
+      P.foot.classList.remove('hidden');
+      const w=el('button','sbtn g','✍️ New entry');w.onclick=()=>openEditor(null,{date:today(),items:[id]});
+      const add=refs=>{addUniq(it.media,refs);it.updated=Date.now();saveHub();refreshAll()};
+      const a=el('button','sbtn','＋ Media');a.onclick=()=>sheet('Add to '+it.name,[
+        {label:'📷 From phone',fn:()=>pickPhoneMedia(async f=>{const refs=await storeMedia(f,today());if(refs)add(refs)})},
+        {label:'🎬 Vault videos',fn:()=>openFilePicker(add,{kind:'v'})},
+        {label:'📁 From vault (incl. journal media)',fn:()=>openFilePicker(add)}]);
+      const l=el('button','sbtn','🔗 Link');l.onclick=()=>{const v=prompt('Paste a link');if(!v)return;const u=findUrls(v);if(!u.length)return vToast("That doesn't look like a link");u.forEach(x=>{if(!it.links.some(y=>y.url===x))it.links.push({url:x,title:''})});saveHub();refreshAll()};
+      P.foot.append(w,a,l);
+    }
   });
   IP.itemId=id;
 }
+function itemMediaActions(ref,id){
+  const it=H.items[id];if(!it)return;ref={p:ref.p||ref.path,k:srcKind(ref),n:srcName(ref)};
+  sheet(ref.n,[
+    {label:'🖼 Set as cover',fn:()=>{it.cover=ref;saveHub();refreshAll()}},
+    {label:'📅 Also add to a journal entry…',fn:()=>chooseEntry('Add to…',(t,ds)=>{const p=putRef(ref,t,ds);p.items=p.items||[];if(!p.items.includes(id))p.items.push(id);saveHub();refreshAll();vToast('Added to '+shortDate(ds))})},
+    {label:'✕ Remove from this item',danger:true,fn:()=>{if(!confirm('Remove from '+it.name+'? (The file stays in the vault.)'))return;it.media=(it.media||[]).filter(m=>m.p!==ref.p);if(it.cover&&it.cover.p===ref.p)it.cover=null;saveHub();refreshAll()}}]);
+}
 function openItemEditor(id,onCreated){
-  const it=id?JSON.parse(JSON.stringify(H.items[id])):{name:'',cat:icat!=='all'?icat:(H.cats[0]||{}).id,notes:'',cover:null};
-  let stagedCover=null;
+  const it=id?JSON.parse(JSON.stringify(H.items[id])):{name:'',cat:icat!=='all'?icat:(H.cats[0]||{}).id,notes:'',cover:null,media:[],links:[],fields:[]};
+  it.media=it.media||[];it.links=it.links||[];it.fields=it.fields||[];
+  const staged=[];let stagedCover=null;const mark=()=>{};
   const P=openPanel(id?'Edit item':'New item',P=>{
     const hero=el('div','hero',cat(it.cat).icon);
-    if(stagedCover)hero.style.backgroundImage='url('+stagedCover.url+')',hero.textContent='';else if(it.cover)lazyThumb(hero,it.cover);
+    if(stagedCover&&showVis){hero.style.backgroundImage='url('+stagedCover.url+')';hero.textContent=''}else if(it.cover)lazyThumb(hero,it.cover);
     P.body.append(hero);
-    const cb=el('div','row2');cb.style.marginBottom='12px';
-    const c1=el('button','sbtn','📷 Cover from phone');c1.onclick=()=>pickPhoneMedia(f=>{const b=f.find(x=>kindOfBlob(x)==='i')||f[0];if(stagedCover)URL.revokeObjectURL(stagedCover.url);stagedCover={blob:b,url:URL.createObjectURL(b)};P.refresh()});
-    const c2=el('button','sbtn','📁 From vault');c2.onclick=()=>openFilePicker(refs=>{if(refs[0]){it.cover=refs[0];stagedCover=null;P.refresh()}},{single:true});
-    cb.append(c1,c2);
-    if(it.cover||stagedCover){const c3=el('button','sbtn red','✕');c3.onclick=()=>{it.cover=null;stagedCover=null;P.refresh()};cb.append(c3)}
+    const cb=el('div','row2');cb.style.cssText='margin-bottom:12px;flex-wrap:wrap';
+    const pickCover=()=>{const pool=it.media.filter(m=>srcKind(m)==='i');const opts=pool.map(m=>({label:'🖼 '+srcName(m),fn:()=>{it.cover=m;stagedCover=null;P.refresh()}}));
+      opts.push({label:'📷 From phone',fn:()=>pickPhoneMedia(f=>{const b=f.find(x=>kindOfBlob(x)==='i')||f[0];if(stagedCover)URL.revokeObjectURL(stagedCover.url);stagedCover={blob:b,url:URL.createObjectURL(b)};P.refresh()})});
+      opts.push({label:'📁 From vault',fn:()=>openFilePicker(refs=>{if(refs[0]){it.cover=refs[0];stagedCover=null;P.refresh()}},{single:true})});
+      sheet('Cover image',opts)};
+    const c1=el('button','sbtn','🖼 Cover…');c1.onclick=pickCover;cb.append(c1);
+    if(it.cover||stagedCover){const c3=el('button','sbtn red','✕ Cover');c3.onclick=()=>{it.cover=null;stagedCover=null;P.refresh()};cb.append(c3)}
     P.body.append(cb);
     const nm=el('input','fld');nm.placeholder='Name';nm.value=it.name;nm.oninput=()=>it.name=nm.value;P.body.append(nm);
     P.body.append(el('div','lbl','Category'));
     P.body.append(catChips(it.cat,cid=>{if(cid!=='all'){it.cat=cid;P.refresh()}}));
+    P.body.append(el('div','lbl','Details'));
+    it.fields.forEach((f,i)=>{const r=el('div','row2');r.style.marginBottom='6px';
+      const k=el('input','in');k.placeholder='Label';k.value=f.k||'';k.style.flex='0 0 34%';k.oninput=()=>f.k=k.value;
+      const v=el('input','in');v.placeholder='Value';v.value=f.v||'';v.oninput=()=>f.v=v.value;
+      const x=el('button','sbtn red','✕');x.onclick=()=>{it.fields.splice(i,1);P.refresh()};r.append(k,v,x);P.body.append(r)});
+    const fr=el('div','chips');['Handle','Where','Since','Website','Birthday','＋ Field'].forEach(lb=>{const b=el('button','chip',esc(lb));b.onclick=()=>{it.fields.push({k:lb.startsWith('＋')?'':lb,v:''});P.refresh()};fr.append(b)});P.body.append(fr);
     P.body.append(el('div','lbl','Notes'));
-    const no=el('textarea','fld');no.style.minHeight='90px';no.placeholder='Anything worth remembering…';no.value=it.notes||'';no.oninput=()=>it.notes=no.value;P.body.append(no);
+    const no=el('textarea','fld');no.style.minHeight='110px';no.placeholder='Anything worth remembering…';no.value=it.notes||'';no.oninput=()=>it.notes=no.value;P.body.append(no);
+    mediaSection(P,it,staged,mark,'Videos & photos');
+    linksSection(P,it,mark);
     P.foot.classList.remove('hidden');
-    if(id){const del=el('button','sbtn red','Delete');del.style.flex='0 0 auto';del.onclick=()=>{if(!confirm('Delete "'+it.name+'"? It will be untagged from all entries.'))return;delete H.items[id];Object.values(H.posts).forEach(p=>p.items=(p.items||[]).filter(x=>x!==id));saveHub();P.noAutoRefresh=true;P.close(false);setTimeout(()=>{const ip=panels.find(x=>x.itemId===id);if(ip)ip.close(false);refreshAll()},60)};P.foot.append(del)}
+    if(id){const del=el('button','sbtn red','Delete');del.style.flex='0 0 auto';del.onclick=()=>{if(!confirm('Delete "'+it.name+'"? It will be untagged from all entries. Its files stay in the vault.'))return;delete H.items[id];Object.values(H.posts).forEach(p=>p.items=(p.items||[]).filter(x=>x!==id));saveHub();P.noAutoRefresh=true;P.close(false);setTimeout(()=>{const ip=panels.find(x=>x.itemId===id);if(ip)ip.close(false);refreshAll()},60)};P.foot.append(del)}
     const sv=el('button','sbtn g','Save');sv.onclick=async()=>{
-      if(!it.name.trim())return vToast('Give it a name');
-      if(stagedCover){sv.disabled=true;const refs=await storeMedia([stagedCover.blob],today());sv.disabled=false;if(!refs)return;it.cover=refs[0];URL.revokeObjectURL(stagedCover.url);stagedCover=null}
-      it.name=it.name.trim();
-      const nid=id||uid();H.items[nid]=Object.assign(H.items[nid]||{id:nid,created:Date.now()},it,{id:nid});saveHub();
-      P.noAutoRefresh=true;P.close(false);setTimeout(()=>{refreshAll();onCreated&&onCreated(nid)},60);
+      if(!(it.name||'').trim())return vToast('Give it a name');
+      sv.disabled=true;sv.textContent='Saving…';
+      const blobs=staged.map(s=>s.blob).concat(stagedCover?[stagedCover.blob]:[]);
+      if(blobs.length){const refs=await storeMedia(blobs,today());if(!refs){sv.disabled=false;sv.textContent='Save';return}
+        if(stagedCover)it.cover=refs.pop();addUniq(it.media,refs);staged.forEach(s=>URL.revokeObjectURL(s.url));staged.length=0;if(stagedCover)URL.revokeObjectURL(stagedCover.url);stagedCover=null}
+      it.name=it.name.trim();it.fields=it.fields.filter(f=>(f.k||'').trim()||(f.v||'').trim());
+      const nid=id||uid();H.items[nid]=Object.assign(H.items[nid]||{id:nid,created:Date.now()},it,{id:nid,updated:Date.now()});saveHub();
+      P.noAutoRefresh=true;P.close(false);setTimeout(()=>{refreshAll();if(onCreated)onCreated(nid);else if(!id)openItem(nid)},60);
     };
     P.foot.append(sv);
   });
@@ -1417,7 +1519,7 @@ async function makeBackup(kind,dest){
     else{
       try{const hub=await root.h.getDirectoryHandle('.hub');list=await walkAll(hub,'/.hub',[])}catch(e){}
       const have=new Set(list.map(x=>x.p)),refs=[];
-      Object.values(H.posts).forEach(p=>(p.media||[]).forEach(r=>refs.push(r)));Object.values(H.items).forEach(i=>i.cover&&refs.push(i.cover));
+      Object.values(H.posts).forEach(p=>(p.media||[]).forEach(r=>refs.push(r)));Object.values(H.items).forEach(i=>{if(i.cover)refs.push(i.cover);(i.media||[]).forEach(r=>refs.push(r))});
       for(const r of refs){if(have.has(r.p))continue;have.add(r.p);try{list.push({p:r.p,h:await resolvePath(r.p)})}catch(e){}}
     }
     const entries=[];
@@ -1494,6 +1596,8 @@ $('#vSettings').onclick=()=>{
   w.innerHTML='<h3>Vault</h3>'+
    '<label><span>Folder<small>'+(root?esc(root.name)+(readOnly?' (read-only)':''):'none')+'</small></span><button class="sbtn" id="sChg">Change folder</button></label>'+
    '<label><span>Shuffle & puzzle include subfolders</span><input type="checkbox" id="sDeep"'+(cfg.deep?' checked':'')+'></label>'+
+   '<h3>Privacy</h3>'+
+   '<label><span>Start with photos & videos hidden<small>Every unlock opens text-only. Tap 👁 (top right) to show them.</small></span><input type="checkbox" id="sHideVis"'+(cfg.hideVis?' checked':'')+'></label>'+
    '<h3>Screenshot Inbox</h3>'+
    '<label><span>Inbox folder (inside vault)<small>New screenshots dropped here get filed into the journal by the date they were taken</small></span><input type="text" id="sInbox" value="'+esc(cfg.inbox)+'" maxlength="40" style="width:110px"></label>'+
    '<label><span>Move filed screenshots into the journal<small>Off = leave them in the Inbox and just link them</small></span><input type="checkbox" id="sInMove"'+(cfg.inboxMove?' checked':'')+'></label>'+
@@ -1518,6 +1622,7 @@ $('#vSettings').onclick=()=>{
   w.querySelector('#sCatAdd').onclick=()=>{if(!H)return;const nm=prompt('Category name');if(!nm)return;const ic=prompt('Emoji for it','🏷️')||'🏷️';H.cats.push({id:uid(),name:nm.trim(),icon:ic.trim()});saveHub();drawCats();render()};
   w.querySelector('#sChg').onclick=()=>{document.querySelector('.sh-bg').remove();pickVault()};
   w.querySelector('#sDeep').onchange=e=>{cfg.deep=e.target.checked;saveCfg()};
+  w.querySelector('#sHideVis').onchange=e=>{cfg.hideVis=e.target.checked;saveCfg()};
   w.querySelector('#sInbox').onchange=e=>{cfg.inbox=cleanName(e.target.value)||'Inbox';e.target.value=cfg.inbox;saveCfg();render()};
   w.querySelector('#sInMove').onchange=e=>{cfg.inboxMove=e.target.checked;saveCfg()};
   w.querySelector('#sInMk').onclick=async()=>{if(!root||!await writeGuard(root))return;try{const d=await subdir(root,cfg.inbox);await makeNomedia(d);vToast('"'+cfg.inbox+'" ready (has .nomedia) ✓')}catch(e){vToast('Could not create: '+e.message)}};
@@ -1536,7 +1641,7 @@ $('#vSettings').onclick=()=>{
 /* ═════════════════════ VIEWER (photos + videos in journal) ═════════════════════ */
 const vw={list:[],i:0,url:null,open:false,ctx:null};
 const vwImg=$('#vwImg'),vwVid=$('#vwVid'),viewer=$('#viewer');
-function openViewer(list,i,ctx){vw.ctx=ctx||null;vw.list=list.slice();vw.i=Math.max(0,i);viewer.classList.remove('hidden');vw.open=true;pushOverlay(()=>closeViewer(true));showVw()}
+function openViewer(list,i,ctx){if(!showVis)return askVis(()=>openViewer(list,i,ctx));vw.ctx=ctx||null;vw.list=list.slice();vw.i=Math.max(0,i);viewer.classList.remove('hidden');vw.open=true;pushOverlay(()=>closeViewer(true));showVw()}
 async function showVw(){
   const s=vw.list[vw.i];if(!s)return;
   let f;try{f=await fileOf(s)}catch(e){vToast('File is missing (moved or deleted?)');return}
@@ -1548,7 +1653,7 @@ async function showVw(){
 }
 function closeViewer(fromPop){if(!vw.open)return;vw.open=false;vwVid.pause();vwVid.removeAttribute('src');vwImg.removeAttribute('src');if(vw.url){URL.revokeObjectURL(vw.url);vw.url=null}viewer.classList.add('hidden');if(!fromPop)popOverlay()}
 $('#vwClose').onclick=()=>closeViewer(false);
-$('#vwMore').onclick=()=>{const s=vw.list[vw.i];if(s)mediaActions(s,vw.ctx&&vw.ctx.post,()=>closeViewer(false))};
+$('#vwMore').onclick=()=>{const s=vw.list[vw.i];if(!s)return;if(vw.ctx&&vw.ctx.item)itemMediaActions(s,vw.ctx.item);else mediaActions(s,vw.ctx&&vw.ctx.post,()=>closeViewer(false))};
 $('#vwPuz').onclick=()=>{const l=vw.list,i=vw.i;closeViewer(true);overlays.pop();openPuzzle(l,i,true)};
 (()=>{let sx,sy,st;
   viewer.addEventListener('touchstart',e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY;st=Date.now()},{passive:true});
@@ -1562,7 +1667,7 @@ $('#vwPuz').onclick=()=>{const l=vw.list,i=vw.i;closeViewer(true);overlays.pop()
 /* ═════════════════════ PLAYER ═════════════════════ */
 const pv=$('#pv'),player=$('#player');
 const pl={list:[],order:[],pos:0,shuffle:false,loop:false,url:null,open:false};
-function openPlayer(list,i,shuffle){
+function openPlayer(list,i,shuffle){if(!showVis)return askVis(()=>openPlayer(list,i,shuffle));
   pl.list=list.slice();pl.shuffle=!!shuffle;
   pl.order=list.map((_,k)=>k);if(pl.shuffle)shuffleArr(pl.order);
   pl.pos=pl.shuffle?0:Math.max(0,i);
@@ -1636,7 +1741,7 @@ document.addEventListener('keydown',e=>{
 /* ═════════════════════ SLIDE PUZZLE (videos + photos) ═════════════════════ */
 const pzV=$('#pzVideo'),pzC=$('#pzCanvas'),pzX=pzC.getContext('2d');
 const pz={g:cfg.grid||3,tiles:[],blank:0,moves:0,start:0,timer:null,solved:false,raf:0,url:null,list:[],open:false,w:0,h:0,src:null};
-function openPuzzle(list,i,reuseHistory){
+function openPuzzle(list,i,reuseHistory){if(!showVis){if(reuseHistory)popOverlay();return askVis(()=>openPuzzle(list,i))}
   pz.list=list;$('#puzzle').classList.remove('hidden');pz.open=true;
   if(reuseHistory)overlays.push(()=>closePuzzle(true));else pushOverlay(()=>closePuzzle(true));
   syncGridBtns();
