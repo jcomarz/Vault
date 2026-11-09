@@ -329,6 +329,7 @@ a.lnk{color:#7f9cf5;word-break:break-all}
     <button class="pbtn2" id="vwClose">✕</button>
     <div class="ptitle" id="vwTitle"></div>
     <button class="pbtn2" id="vwPuz" title="Slide puzzle">🧩</button>
+    <button class="pbtn2" id="vwMore" title="More">⋯</button>
   </div>
 </div>
 
@@ -918,15 +919,15 @@ function postCard(p,P){
   c.append(hd);
   if(p.text){const t=el('div','post-txt',linkify(p.text));t.querySelectorAll('a.lnk').forEach(a=>a.onclick=e=>{e.preventDefault();copyText(a.href)});c.append(t)}
   const vids=(p.media||[]).filter(m=>srcKind(m)==='v'),imgs=(p.media||[]).filter(m=>srcKind(m)!=='v');
-  vids.forEach((m,i)=>c.append(inlineVideo({src:m,name:srcName(m),full:()=>openPlayer(vids,i,false)},P)));
-  if(imgs.length){const g=el('div','mgrid');imgs.forEach((m,i)=>g.append(mediaTile(m,{onclick:()=>openViewer(imgs,i)})));c.append(g)}
+  vids.forEach((m,i)=>c.append(inlineVideo({src:m,name:srcName(m),full:()=>openPlayer(vids,i,false),more:readOnly?null:()=>mediaActions(m,p.id)},P)));
+  if(imgs.length){const g=el('div','mgrid');imgs.forEach((m,i)=>g.append(mediaTile(m,{onclick:()=>openViewer(imgs,i,{post:p.id})})));c.append(g)}
   (p.links||[]).forEach(l=>c.append(linkCard(l,P)));
   if((p.items||[]).length){const t=el('div','tags');p.items.forEach(id=>{const it=H.items[id];if(!it)return;const b=el('span','tag',cat(it.cat).icon+' '+esc(it.name));b.onclick=()=>openItem(id);t.append(b)});c.append(t)}
   return c;
 }
 /* inline video player inside entries */
 function inlineVideo(o,P){
-  const w=el('div','ivid','<div class="ivbox"><div class="ivp" data-dur></div><button class="ivplay">▶</button></div><div class="ivbar"><span class="ivn">🎬 '+esc(o.name||'video')+'</span>'+(o.full?'<button class="sbtn ivfull">⛶ Full</button>':'')+'</div>');
+  const w=el('div','ivid','<div class="ivbox"><div class="ivp" data-dur></div><button class="ivplay">▶</button></div><div class="ivbar"><span class="ivn">🎬 '+esc(o.name||'video')+'</span>'+(o.more?'<button class="sbtn ivmore">⋯</button>':'')+(o.full?'<button class="sbtn ivfull">⛶ Full</button>':'')+'</div>');
   const poster=w.querySelector('.ivp');if(o.src)lazyThumb(poster,o.src);
   w.querySelector('.ivplay').onclick=async e=>{
     e.stopPropagation();let u=o.url;
@@ -936,6 +937,7 @@ function inlineVideo(o,P){
     v.addEventListener('error',()=>vToast("Can't play this video here"));
     poster.replaceWith(v);e.target.remove();v.play().catch(()=>{});
   };
+  const mb=w.querySelector('.ivmore');if(mb)mb.onclick=()=>o.more();
   const fb=w.querySelector('.ivfull');if(fb)fb.onclick=()=>{w.querySelectorAll('video').forEach(x=>x.pause());o.full()};
   return w;
 }
@@ -968,6 +970,36 @@ function pickDate(title,cb){
   const w=el('div');const i=el('input','fld');i.type='date';i.value=today();
   const b=el('button','pbtn','Add to this day');b.onclick=()=>{const bg=w.closest('.sh-bg');if(bg)bg.remove();if(i.value)cb(i.value)};
   w.append(i,b);sheet(title,[],w,'Cancel');
+}
+/* add / move a photo or video between entries (same file, no copy) */
+const postEmpty=p=>!(p.text||'').trim()&&!(p.media||[]).length&&!(p.links||[]).length&&!(p.items||[]).length;
+function chooseEntry(title,cb){
+  pickDate(title,ds=>{
+    const ps=postsByDate()[ds]||[];
+    if(!ps.length)return cb(null,ds);
+    sheet(shortDate(ds)+': which entry?',[{label:'＋ New entry',fn:()=>cb(null,ds)}].concat(ps.map(p=>({label:(p.time||'')+' · '+((p.text||'').slice(0,40)||((p.media||[]).length+' photo/video')),fn:()=>cb(p,ds)}))));
+  });
+}
+function putRef(ref,target,ds){
+  if(target){target.media=target.media||[];if(!target.media.some(m=>m.p===ref.p))target.media.push(ref);target.updated=Date.now();H.posts[target.id]=target}
+  else{const p={id:uid(),date:ds,time:nowTime(),text:'',media:[ref],items:[],links:[],created:Date.now(),updated:Date.now()};H.posts[p.id]=p}
+}
+function mediaActions(ref,postId,after){
+  ref={p:ref.p||ref.path,k:srcKind(ref),n:srcName(ref)};
+  const from=postId&&H.posts[postId];
+  const items=[{label:'📅 Also add to another entry…',fn:()=>chooseEntry('Add to…',(t,ds)=>{putRef(ref,t,ds);saveHub();refreshAll();vToast('Added to '+shortDate(ds))})}];
+  if(from){
+    items.push({label:'↪ Move to another entry…',fn:()=>chooseEntry('Move to…',(t,ds)=>{
+      if(t&&t.id===from.id)return;
+      from.media=(from.media||[]).filter(m=>m.p!==ref.p);from.updated=Date.now();
+      putRef(ref,t,ds);if(postEmpty(from))delete H.posts[from.id];
+      saveHub();after&&after();refreshAll();vToast('Moved to '+shortDate(ds));
+    })});
+    items.push({label:'🏷️ Use as item cover…',fn:()=>openItemPicker([],ids=>{ids.forEach(id=>{if(H.items[id])H.items[id].cover=ref});saveHub();refreshAll();vToast('Cover set')})});
+    items.push({label:'✕ Remove from this entry',danger:true,fn:()=>{if(!confirm('Remove from this entry? (The file stays in the vault.)'))return;
+      from.media=(from.media||[]).filter(m=>m.p!==ref.p);from.updated=Date.now();if(postEmpty(from))delete H.posts[from.id];saveHub();after&&after();refreshAll()}});
+  }
+  sheet(ref.n,items);
 }
 function openDay(ds){
   const DP=openPanel(longDate(ds),P=>{
@@ -1165,6 +1197,9 @@ function openFilePicker(cb,opt){
     P.body.append(cr);
     const{dirs,files:all}=await listDir(at);const files=all.filter(f=>!opt.kind||f.k===opt.kind);
     const g=el('div','vgrid');
+    if(at===root&&root.h){try{const hh=await root.h.getDirectoryHandle('.hub'),mh=await hh.getDirectoryHandle('media');
+      const hubN={name:'📔 Journal',path:'/.hub',parent:root,h:hh},medN={name:'media',path:'/.hub/media',parent:hubN,h:mh};
+      const c=el('div','vc dir','<div class="th">📔</div><div class="nm">Journal media (hidden)</div>');c.onclick=()=>{at=medN;P.refresh()};g.append(c)}catch(e){}}
     dirs.forEach(sd=>{const c=el('div','vc dir','<div class="th">📁</div><div class="nm">'+esc(sd.name)+'</div>');c.onclick=()=>{at=sd;P.refresh()};g.append(c)});
     files.forEach(f=>{const c=el('div','vc'+(sel.has(f.path)?' sel':''),'<div class="th">'+(f.k==='v'?'▶':'🖼')+'</div><div class="nm">'+esc(f.name)+'</div>');
       if(sel.has(f.path))c.style.outline='3px solid #538d4e';
@@ -1172,7 +1207,7 @@ function openFilePicker(cb,opt){
       c.onclick=()=>{if(opt.single){P.close(false);cb([{p:f.path,k:f.k,n:f.name}]);return}
         if(sel.has(f.path)){sel.delete(f.path);c.style.outline=''}else{sel.set(f.path,{p:f.path,k:f.k,n:f.name});c.style.outline='3px solid #538d4e'}dn.textContent='Attach ('+sel.size+')'};
       g.append(c)});
-    if(!dirs.length&&!files.length)P.body.append(el('div','empty','Empty folder'));else P.body.append(g);
+    if(!g.children.length)P.body.append(el('div','empty','Empty folder'));else P.body.append(g);
     let dn;
     if(!opt.single){P.foot.classList.remove('hidden');dn=el('button','sbtn g','Attach ('+sel.size+')');dn.onclick=()=>{P.close(false);cb([...sel.values()])};P.foot.append(dn)}
   });
@@ -1499,9 +1534,9 @@ $('#vSettings').onclick=()=>{
 };
 
 /* ═════════════════════ VIEWER (photos + videos in journal) ═════════════════════ */
-const vw={list:[],i:0,url:null,open:false};
+const vw={list:[],i:0,url:null,open:false,ctx:null};
 const vwImg=$('#vwImg'),vwVid=$('#vwVid'),viewer=$('#viewer');
-function openViewer(list,i){vw.list=list.slice();vw.i=Math.max(0,i);viewer.classList.remove('hidden');vw.open=true;pushOverlay(()=>closeViewer(true));showVw()}
+function openViewer(list,i,ctx){vw.ctx=ctx||null;vw.list=list.slice();vw.i=Math.max(0,i);viewer.classList.remove('hidden');vw.open=true;pushOverlay(()=>closeViewer(true));showVw()}
 async function showVw(){
   const s=vw.list[vw.i];if(!s)return;
   let f;try{f=await fileOf(s)}catch(e){vToast('File is missing (moved or deleted?)');return}
@@ -1513,6 +1548,7 @@ async function showVw(){
 }
 function closeViewer(fromPop){if(!vw.open)return;vw.open=false;vwVid.pause();vwVid.removeAttribute('src');vwImg.removeAttribute('src');if(vw.url){URL.revokeObjectURL(vw.url);vw.url=null}viewer.classList.add('hidden');if(!fromPop)popOverlay()}
 $('#vwClose').onclick=()=>closeViewer(false);
+$('#vwMore').onclick=()=>{const s=vw.list[vw.i];if(s)mediaActions(s,vw.ctx&&vw.ctx.post,()=>closeViewer(false))};
 $('#vwPuz').onclick=()=>{const l=vw.list,i=vw.i;closeViewer(true);overlays.pop();openPuzzle(l,i,true)};
 (()=>{let sx,sy,st;
   viewer.addEventListener('touchstart',e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY;st=Date.now()},{passive:true});
