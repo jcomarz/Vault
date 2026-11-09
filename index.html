@@ -201,6 +201,14 @@ a.lnk{color:#7f9cf5;word-break:break-all}
 .mstrip{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;margin-top:8px}
 .mt.more{font-size:12px;color:#8b90a0}
 .hint{font-size:11px;color:#8b90a0;margin-top:6px;line-height:1.5}
+body.shield #decoy{z-index:100000}
+.mt .hnd{position:absolute;left:3px;bottom:3px;width:30px;height:30px;border-radius:8px;background:rgba(0,0,0,.75);color:#fff;font-size:16px;touch-action:none;display:flex;align-items:center;justify-content:center}
+.mt .ord{position:absolute;left:4px;top:4px;background:rgba(0,0,0,.7);color:#fff;font-size:10px;font-weight:700;border-radius:999px;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.mt.lift{opacity:.55;outline:3px solid #538d4e;pointer-events:none}
+.lbl-h{text-transform:none;letter-spacing:0;font-weight:400}
+.ic2.fold{background:#1a1f2b}.ic2.fold .th{font-size:40px;background:#141824}
+.ic2 .more{position:absolute;right:2px;bottom:0;width:30px;height:30px;color:#8b90a0;font-size:16px}
+.flink{color:#7f9cf5;cursor:pointer}
 body.novis .th,body.novis .mt,body.novis .tn,body.novis .hero,body.novis .cal-th i,body.novis .ivp{background-image:none!important}
 body.novis .th.loaded,body.novis .mt.loaded{color:#3a4052!important;font-size:22px!important}
 .ph .visbtn{font-size:16px}
@@ -585,6 +593,7 @@ async function unlock(gesture){
   render();
 }
 function lock(){
+  document.body.classList.remove('shield');
   if(locked)return;locked=true;
   closePlayer(true);closePuzzle(true);closeViewer(true);
   panels.slice().forEach(P=>P.free());document.querySelectorAll('.sh-bg,.panel').forEach(n=>n.remove());panels.length=0;
@@ -601,6 +610,19 @@ document.addEventListener('visibilitychange',()=>{
   }else document.body.classList.remove('veil');
 });
 window.addEventListener('pagehide',()=>{if(!locked&&!picking&&cfg.autolock)lock()});
+/* Shield: the moment the window loses focus (recents gesture, home, notification shade, app switch),
+   paint the game on top so Android's recent-apps snapshot shows the game, not the vault.
+   If focus comes back without the app being hidden (e.g. pulled-down shade), the shield lifts. */
+function shieldOn(){if(locked||picking||!cfg.autolock)return;document.body.classList.add('shield');decoy.classList.remove('hidden');setTheme();document.querySelectorAll('video').forEach(v=>v.pause())}
+function shieldOff(){if(!document.body.classList.contains('shield'))return;document.body.classList.remove('shield');if(!locked){decoy.classList.add('hidden');document.querySelector('meta[name=theme-color]').content='#0d0f14'}}
+window.addEventListener('blur',shieldOn);
+window.addEventListener('focus',()=>{if(!document.hidden)shieldOff()});
+document.addEventListener('freeze',()=>{if(!locked&&!picking&&cfg.autolock)lock()});
+// native pickers/dialogs also steal focus: don't shield for those
+['confirm','prompt','alert'].forEach(k=>{const f=window[k].bind(window);window[k]=m=>{setPicking(true);try{return f(m)}finally{setTimeout(()=>setPicking(false),400)}}});
+document.addEventListener('pointerdown',e=>{if(e.target.matches&&e.target.matches('select,input[type=date],input[type=time]'))setPicking(true,120000)},true);
+document.addEventListener('change',e=>{if(e.target.matches&&e.target.matches('select,input[type=date],input[type=time]'))setTimeout(()=>setPicking(false),400)},true);
+document.addEventListener('focusout',e=>{if(e.target.matches&&e.target.matches('select,input[type=date],input[type=time]'))setTimeout(()=>setPicking(false),400)},true);
 
 /* ═════════════════════ STORAGE LAYER ═════════════════════ */
 const hasFSA='showDirectoryPicker' in window;
@@ -736,7 +758,7 @@ async function saveItems(items,d){// into a Files folder
    .hub is a hidden dot-folder AND gets its own .nomedia.                    */
 const DEF_CATS=[{id:'people',name:'People',icon:'👤'},{id:'places',name:'Places',icon:'📍'},{id:'things',name:'Things',icon:'📦'},{id:'media',name:'Shows & media',icon:'🎬'},{id:'moments',name:'Moments',icon:'⭐'}];
 let H=null,bakDone=false,hubWarned=false;
-const newHub=()=>({v:1,posts:{},items:{},cats:DEF_CATS.map(c=>Object.assign({},c))});
+const newHub=()=>({v:1,posts:{},items:{},folders:{},cats:DEF_CATS.map(c=>Object.assign({},c))});
 async function hubDir(){const d=await subdir(root,'.hub');if(!await hasNomedia(d))await makeNomedia(d);return d}
 async function loadHub(){
   if(!root)return;
@@ -744,7 +766,7 @@ async function loadHub(){
   if(root.h){try{const d=await root.h.getDirectoryHandle('.hub');data=JSON.parse(await (await (await d.getFileHandle('data.json')).getFile()).text())}catch(e){}}
   if(!data){let c=null;try{c=await kvGet('hub')}catch(e){}if(c&&c.posts){data=c;if(root.h&&!readOnly)setTimeout(()=>saveHub(true),50)}}
   H=data||newHub();
-  H.posts=H.posts||{};H.items=H.items||{};if(!Array.isArray(H.cats)||!H.cats.length)H.cats=DEF_CATS.slice();
+  H.posts=H.posts||{};H.items=H.items||{};H.folders=H.folders||{};if(!Array.isArray(H.cats)||!H.cats.length)H.cats=DEF_CATS.slice();
 }
 let saveT;
 function saveHub(now){kvSet('hub',H).catch(()=>{});clearTimeout(saveT);saveT=setTimeout(writeHub,now?0:400)}
@@ -936,15 +958,21 @@ async function renderCal(main){
 function nomediaBanner(){const w=el('div','banner warn','⚠️ <b>No .nomedia in this vault.</b> Gallery apps may show its contents, and saving is blocked until you add one.<div class="bb"><button class="sbtn">Create .nomedia</button></div>');w.querySelector('button').onclick=async()=>{await makeNomedia(root);render()};return w}
 function addPost(p){p.id=p.id||uid();p.created=p.created||Date.now();p.updated=Date.now();H.posts[p.id]=p;saveHub();refreshAll();return p}
 
+/* renders media in the saved order: videos as inline players, runs of photos as grids */
+function mediaFlow(box,media,P,ctx,more){
+  const vids=media.filter(m=>srcKind(m)==='v'),imgs=media.filter(m=>srcKind(m)!=='v');let run=null;
+  media.forEach(m=>{
+    if(srcKind(m)==='v'){run=null;const i=vids.indexOf(m);box.append(inlineVideo({src:m,name:srcName(m),full:()=>openPlayer(vids,i,false),more:readOnly?null:()=>more(m)},P))}
+    else{if(!run){run=el('div','mgrid');box.append(run)}const i=imgs.indexOf(m);run.append(mediaTile(m,{onclick:()=>openViewer(imgs,i,ctx)}))}
+  });
+}
 function postCard(p,P){
   const c=el('div','post');
   const hd=el('div','post-h','<span class="tm">'+esc(p.time||'')+'</span>');
   if(!readOnly){const e=el('button','sbtn','Edit');e.onclick=()=>openEditor(p);hd.append(e)}
   c.append(hd);
   if(p.text){const t=el('div','post-txt',linkify(p.text));wireLinks(t);c.append(t)}
-  const vids=(p.media||[]).filter(m=>srcKind(m)==='v'),imgs=(p.media||[]).filter(m=>srcKind(m)!=='v');
-  vids.forEach((m,i)=>c.append(inlineVideo({src:m,name:srcName(m),full:()=>openPlayer(vids,i,false),more:readOnly?null:()=>mediaActions(m,p.id)},P)));
-  if(imgs.length){const g=el('div','mgrid');imgs.forEach((m,i)=>g.append(mediaTile(m,{onclick:()=>openViewer(imgs,i,{post:p.id})})));c.append(g)}
+  mediaFlow(c,p.media||[],P,{post:p.id},m=>mediaActions(m,p.id));
   (p.links||[]).forEach(l=>c.append(linkCard(l,P)));
   if((p.items||[]).length){const t=el('div','tags');p.items.forEach(id=>{const it=H.items[id];if(!it)return;const b=el('span','tag',cat(it.cat).icon+' '+esc(it.name));b.onclick=()=>openItem(id);t.append(b)});c.append(t)}
   return c;
@@ -1060,15 +1088,37 @@ function openDay(ds){
 
 /* ── shared editor sections (entries + items) ── */
 const addUniq=(arr,refs)=>refs.forEach(r=>{if(!arr.some(m=>m.p===r.p))arr.push(r)});
+function dragTile(e,g,t,arr,mark){
+  e.preventDefault();e.stopPropagation();
+  try{g.setPointerCapture(e.pointerId)}catch(x){}
+  t.classList.add('lift');const m=t._m;
+  const renum=()=>g.querySelectorAll('.mt').forEach(x=>{const o=x.querySelector('.ord');if(o&&x._m)o.textContent=arr.indexOf(x._m)+1});
+  const move=ev=>{
+    const over=document.elementFromPoint(ev.clientX,ev.clientY),ot=over&&over.closest('.mt');
+    if(!ot||ot===t||ot.parentNode!==g||!ot._m)return;
+    const from=arr.indexOf(m),to=arr.indexOf(ot._m);if(from<0||to<0)return;
+    arr.splice(from,1);arr.splice(to,0,m);if(to>from)ot.after(t);else ot.before(t);renum();mark();
+    if(navigator.vibrate)try{navigator.vibrate(8)}catch(x){}
+  };
+  const up=()=>{t.classList.remove('lift');g.removeEventListener('pointermove',move);g.removeEventListener('pointerup',up);g.removeEventListener('pointercancel',up)};
+  g.addEventListener('pointermove',move);g.addEventListener('pointerup',up);g.addEventListener('pointercancel',up);
+}
 function stagedTile(s,onRemove){
   const k=kindOfBlob(s.blob),t=el('div','mt',k==='v'?'🎬':'🖼');
   if(k!=='v'&&showVis){t.style.backgroundImage='url('+s.url+')';t.textContent=''}
   t.append(el('span','vbadge','new'));const x=el('button','rm','✕');x.onclick=e=>{e.stopPropagation();onRemove()};t.append(x);return t;
 }
 function mediaSection(P,d,staged,mark,label){
-  P.body.append(el('div','lbl',label||'Photos & videos'));
+  P.body.append(el('div','lbl',esc(label||'Photos & videos')+(d.media.length>1?' <span class="lbl-h">· hold ⠿ and drag to reorder</span>':'')));
   const g=el('div','mgrid');
-  d.media.forEach((m,i)=>{const t=mediaTile(m);const x=el('button','rm','✕');x.onclick=e=>{e.stopPropagation();d.media.splice(i,1);mark();P.refresh()};t.append(x);t.onclick=()=>openViewer(d.media,i);g.append(t)});
+  d.media.forEach(m=>{
+    const t=mediaTile(m);t._m=m;
+    const x=el('button','rm','✕');x.onclick=e=>{e.stopPropagation();d.media.splice(d.media.indexOf(m),1);mark();P.refresh()};t.append(x);
+    t.onclick=e=>{if(e.target.closest('.hnd'))return;openViewer(d.media,d.media.indexOf(m))};
+    if(d.media.length>1){const hd=el('button','hnd','⠿');hd.addEventListener('pointerdown',e=>dragTile(e,g,t,d.media,mark));hd.onclick=e=>e.stopPropagation();t.append(hd)}
+    const n=el('span','ord',String(d.media.indexOf(m)+1));t.append(n);
+    g.append(t);
+  });
   staged.forEach((s,i)=>g.append(stagedTile(s,()=>{URL.revokeObjectURL(s.url);staged.splice(i,1);P.refresh()})));
   if(g.children.length)P.body.append(g);
   const mb=el('div','row2');mb.style.cssText='margin-top:8px;flex-wrap:wrap';
@@ -1130,11 +1180,11 @@ function openEditor(post,defs){
 /* ─────────── ITEMS ─────────── */
 let iq='',icat='all',isort='recent';
 function itemStats(){const s={};Object.values(H.posts).forEach(p=>(p.items||[]).forEach(id=>{const x=s[id]||(s[id]={n:0,last:''});x.n++;if(p.date>x.last)x.last=p.date}));return s}
-function itemCards(list,onclick,selected){
+function itemCards(list,onclick,selected,showFolder){
   const st=itemStats(),g=el('div','igrid');
   list.forEach(it=>{
     const x=st[it.id],nm=(it.media||[]).length,nv=(it.media||[]).filter(m=>srcKind(m)==='v').length;
-    const c=el('div','ic2'+(selected&&selected.includes(it.id)?' sel':''),'<div class="th">'+cat(it.cat).icon+'</div><div class="nm">'+(it.pinned?'⭐ ':'')+esc(it.name)+'</div><div class="sub">'+(x?x.n+(x.n>1?' entries':' entry'):'no entries')+(nv?' · 🎬'+nv:'')+(nm-nv?' · 🖼'+(nm-nv):'')+'</div>');
+    const c=el('div','ic2'+(selected&&selected.includes(it.id)?' sel':''),'<div class="th">'+cat(it.cat).icon+'</div><div class="nm">'+(it.pinned?'⭐ ':'')+esc(it.name)+'</div><div class="sub">'+(showFolder&&it.folder&&H.folders[it.folder]?'📁 '+esc(H.folders[it.folder].name)+' · ':'')+(x?x.n+(x.n>1?' entries':' entry'):'no entries')+(nv?' · 🎬'+nv:'')+(nm-nv?' · 🖼'+(nm-nv):'')+'</div>');
     if(it.cover)lazyThumb(c.querySelector('.th'),it.cover);
     c.onclick=()=>onclick(it,c);g.append(c);
   });
@@ -1153,13 +1203,22 @@ function catChips(curId,onpick){
   [{id:'all',name:'All',icon:''}].concat(H.cats).forEach(c=>{const b=el('button','chip'+(curId===c.id?' on':''),(c.icon?c.icon+' ':'')+esc(c.name));b.onclick=()=>onpick(c.id);ch.append(b)});
   return ch;
 }
+let ifolder=null;// current item folder (null = top level)
+const folderPath=id=>{const out=[];let f=H.folders[id];while(f){out.unshift(f);f=H.folders[f.parent]}return out};
+const folderLabel=id=>id&&H.folders[id]?folderPath(id).map(f=>f.name).join(' › '):'Top level';
+const subFolders=pid=>Object.values(H.folders).filter(f=>(f.parent||null)===(pid||null)).sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
+function folderCount(id){let items=Object.values(H.items).filter(i=>i.folder===id).length,subs=subFolders(id);subs.forEach(s=>items+=folderCount(s.id).items);return{items,subs:subs.length}}
 function renderItems(main){
+  if(ifolder&&!H.folders[ifolder])ifolder=null;
   const r=el('div','row2');r.style.marginBottom='8px';
-  const s=el('input','in');s.placeholder='Search items, notes, fields…';s.value=iq;
+  const s=el('input','in');s.placeholder='Search all items, notes, fields…';s.value=iq;
   s.oninput=()=>{iq=s.value;clearTimeout(s._t);s._t=setTimeout(()=>{renderItemsGrid()},200)};
   const so=el('select','in','<option value="recent">Recent</option><option value="most">Most logged</option><option value="name">A–Z</option>');so.value=isort;so.onchange=()=>{isort=so.value;renderItemsGrid()};
-  const nb=el('button','sbtn g','＋ New');nb.onclick=()=>openItemEditor(null);
-  r.append(s,so);if(!readOnly)r.append(nb);main.append(r);
+  r.append(s,so);main.append(r);
+  if(!readOnly){const r2=el('div','row2');r2.style.marginBottom='8px';
+    const nb=el('button','sbtn g','＋ New item');nb.onclick=()=>openItemEditor(null);
+    const nf=el('button','sbtn','📁＋ New folder');nf.onclick=()=>newItemFolder(ifolder);
+    r2.append(nb,nf);main.append(r2)}
   main.append(catChips(icat,id=>{icat=id;render()}));
   const holder=el('div');holder.id='itemsHolder';main.append(holder);itemsHolder=holder;
   renderItemsGrid();
@@ -1167,9 +1226,50 @@ function renderItems(main){
 let itemsHolder=null;
 function renderItemsGrid(){
   const h=itemsHolder;if(!h)return;h.innerHTML='';
+  const searching=!!iq.trim()||icat!=='all';
+  if(!searching){
+    const cr=el('div','crumbs');
+    const home=el('button','','🏷️ All folders');home.onclick=()=>{ifolder=null;renderItemsGrid()};cr.append(home);
+    folderPath(ifolder).forEach(f=>{cr.append(el('span','sep','›'));const b=el('button','',esc(f.icon+' '+f.name));b.onclick=()=>{ifolder=f.id;renderItemsGrid()};cr.append(b)});
+    if(ifolder)h.append(cr);
+    const subs=subFolders(ifolder);
+    if(subs.length){const g=el('div','igrid');g.style.marginBottom='10px';
+      subs.forEach(f=>{const n=folderCount(f.id);const c=el('div','ic2 fold','<div class="th">'+esc(f.icon||'📁')+'</div><div class="nm">'+esc(f.name)+'</div><div class="sub">'+n.items+' item'+(n.items!==1?'s':'')+(n.subs?' · '+n.subs+' folder'+(n.subs>1?'s':''):'')+'</div>'+(readOnly?'':'<button class="more">⋯</button>'));
+        c.onclick=e=>{if(e.target.classList.contains('more'))return folderMenu(f);ifolder=f.id;renderItemsGrid();$('#vMain').scrollTop=0};g.append(c)});
+      h.append(g)}
+    const l=filteredItems('', 'all', isort).filter(it=>(it.folder||null)===(ifolder||null));
+    if(l.length)h.append(itemCards(l,it=>openItem(it.id)).g);
+    if(!l.length&&!subs.length)h.append(el('div','empty','<div class="big">'+(ifolder?'📂':'🏷️')+'</div>'+(ifolder?'This folder is empty.<br>Tap <b>＋ New item</b> to add one here, or move items in from their Edit screen.':(Object.keys(H.items).length?'':'No items yet.<br>Items are the people, places, shows and things you reference in journal entries. Each one gets its own page with videos, photos, links and notes. Group them with <b>📁＋ New folder</b>.'))));
+    return;
+  }
   const l=filteredItems(iq,icat,isort);
-  if(!l.length){h.append(el('div','empty','<div class="big">🏷️</div>'+(Object.keys(H.items).length?'No items match.':'No items yet.<br>Items are the people, places, shows and things you reference in journal entries. Each one gets its own page with videos, photos, links and notes.')));return}
-  h.append(itemCards(l,it=>openItem(it.id)).g);
+  if(!l.length){h.append(el('div','empty','<div class="big">🔎</div>No items match.'));return}
+  h.append(el('div','hint','Showing matches from every folder'));
+  h.append(itemCards(l,it=>openItem(it.id),null,true).g);
+}
+function newItemFolder(parent,cb){
+  const n=prompt('Folder name');if(!n||!n.trim())return;
+  const ic=prompt('Emoji for it (optional)','📁')||'📁';
+  const f={id:uid(),name:n.trim().slice(0,60),icon:ic.trim()||'📁',parent:parent||null,created:Date.now()};
+  H.folders[f.id]=f;saveHub();if(cb)cb(f);else render();
+}
+function pickFolder(title,exclude,cb){
+  const bad=new Set();if(exclude){const walk=id=>{bad.add(id);subFolders(id).forEach(s=>walk(s.id))};walk(exclude)}
+  const opts=[{label:'🏷️ Top level',fn:()=>cb(null)}];
+  const add=(pid,depth)=>subFolders(pid).forEach(f=>{if(bad.has(f.id))return;opts.push({label:' '.repeat(depth)+(f.icon||'📁')+' '+f.name,fn:()=>cb(f.id)});add(f.id,depth+1)});
+  add(null,0);
+  opts.push({label:'📁＋ New folder…',fn:()=>newItemFolder(null,f=>cb(f.id))});
+  sheet(title,opts);
+}
+function folderMenu(f){
+  sheet((f.icon||'📁')+' '+f.name,[
+    {label:'✏️ Rename',fn:()=>{const n=prompt('Folder name',f.name);if(n&&n.trim()){f.name=n.trim();saveHub();render()}}},
+    {label:'😀 Change icon',fn:()=>{const n=prompt('Emoji',f.icon||'📁');if(n!=null){f.icon=n.trim()||'📁';saveHub();render()}}},
+    {label:'📁＋ New folder inside',fn:()=>newItemFolder(f.id)},
+    {label:'📦 Move folder to…',fn:()=>pickFolder('Move "'+f.name+'" into',f.id,pid=>{f.parent=pid;saveHub();render()})},
+    {label:'🗑 Delete folder',danger:true,fn:()=>{if(!confirm('Delete folder "'+f.name+'"? Its items and subfolders move up one level. Nothing else is deleted.'))return;
+      Object.values(H.items).forEach(i=>{if(i.folder===f.id)i.folder=f.parent||null});subFolders(f.id).forEach(s=>s.parent=f.parent||null);
+      delete H.folders[f.id];if(ifolder===f.id)ifolder=f.parent||null;saveHub();render()}}]);
 }
 function wireLinks(n){n.querySelectorAll('a.lnk').forEach(a=>a.onclick=e=>{e.preventDefault();e.stopPropagation();linkSheet(a.href)})}
 function openItem(id){
@@ -1182,17 +1282,13 @@ function openItem(id){
     const hero=el('div','hero',cat(it.cat).icon);
     if(it.cover){lazyThumb(hero,it.cover);hero.onclick=()=>openViewer([it.cover],0,{item:id})}
     P.body.append(hero);
-    P.body.append(el('div','',`<div style="font-size:22px;font-weight:800">${it.pinned?'⭐ ':''}${esc(it.name)}</div><div style="color:#8b90a0;font-size:13px;margin-top:2px">${cat(it.cat).icon} ${esc(cat(it.cat).name)}</div>`));
+    P.body.append(el('div','',`<div style="font-size:22px;font-weight:800">${it.pinned?'⭐ ':''}${esc(it.name)}</div><div style="color:#8b90a0;font-size:13px;margin-top:2px">${cat(it.cat).icon} ${esc(cat(it.cat).name)}${it.folder&&H.folders[it.folder]?' · <span class="flink">📁 '+esc(folderLabel(it.folder))+'</span>':''}</div>`));
+    const fl=P.body.querySelector('.flink');if(fl)fl.onclick=()=>{ifolder=it.folder;cfg.tab='items';saveCfg();while(panels.length)panels[panels.length-1].close(false);setTimeout(render,80)};
     const ps=itemPosts(id),days=[...new Set(ps.map(p=>p.date))],entryMediaN=ps.reduce((a,p)=>a+(p.media||[]).length,0);
     const sr=el('div','stat-row','<div class="stat"><b>'+ps.length+'</b><span>entries</span></div><div class="stat"><b>'+days.length+'</b><span>days</span></div><div class="stat"><b>'+(it.media.length+entryMediaN)+'</b><span>photos & videos</span></div>');sr.style.marginTop='12px';P.body.append(sr);
     if(it.fields.length){const f=el('div','fields');it.fields.forEach(x=>f.append(el('div','frow','<span class="fk">'+esc(x.k||'')+'</span><span class="fv">'+linkify(x.v||'')+'</span>')));wireLinks(f);P.body.append(f)}
     if(it.notes){const n=el('div','post-txt',linkify(it.notes));n.style.marginTop='12px';wireLinks(n);P.body.append(n)}
-    const vids=it.media.filter(m=>srcKind(m)==='v'),imgs=it.media.filter(m=>srcKind(m)!=='v');
-    if(vids.length||imgs.length){
-      P.body.append(el('div','lbl','Videos & photos'));
-      vids.forEach((m,i)=>P.body.append(inlineVideo({src:m,name:srcName(m),full:()=>openPlayer(vids,i,false),more:readOnly?null:()=>itemMediaActions(m,id)},P)));
-      if(imgs.length){const g=el('div','mgrid');imgs.forEach((m,i)=>g.append(mediaTile(m,{onclick:()=>openViewer(imgs,i,{item:id})})));P.body.append(g)}
-    }
+    if(it.media.length){P.body.append(el('div','lbl','Videos & photos'));mediaFlow(P.body,it.media,P,{item:id},m=>itemMediaActions(m,id))}
     if(it.links.length){P.body.append(el('div','lbl','Links'));it.links.forEach(l=>P.body.append(linkCard(l,P)))}
     P.body.append(el('div','lbl','In your journal'+(days.length?' · since '+shortDate(days[days.length-1]):'')));
     if(!ps.length)P.body.append(el('div','empty','Not referenced in any entry yet.<br>Tag it from an entry, or tap ✍️ below.'));
@@ -1228,7 +1324,7 @@ function itemMediaActions(ref,id){
     {label:'✕ Remove from this item',danger:true,fn:()=>{if(!confirm('Remove from '+it.name+'? (The file stays in the vault.)'))return;it.media=(it.media||[]).filter(m=>m.p!==ref.p);if(it.cover&&it.cover.p===ref.p)it.cover=null;saveHub();refreshAll()}}]);
 }
 function openItemEditor(id,onCreated){
-  const it=id?JSON.parse(JSON.stringify(H.items[id])):{name:'',cat:icat!=='all'?icat:(H.cats[0]||{}).id,notes:'',cover:null,media:[],links:[],fields:[]};
+  const it=id?JSON.parse(JSON.stringify(H.items[id])):{name:'',cat:icat!=='all'?icat:(H.cats[0]||{}).id,folder:ifolder||null,notes:'',cover:null,media:[],links:[],fields:[]};
   it.media=it.media||[];it.links=it.links||[];it.fields=it.fields||[];
   const staged=[];let stagedCover=null;const mark=()=>{};
   const P=openPanel(id?'Edit item':'New item',P=>{
@@ -1246,6 +1342,8 @@ function openItemEditor(id,onCreated){
     const nm=el('input','fld');nm.placeholder='Name';nm.value=it.name;nm.oninput=()=>it.name=nm.value;P.body.append(nm);
     P.body.append(el('div','lbl','Category'));
     P.body.append(catChips(it.cat,cid=>{if(cid!=='all'){it.cat=cid;P.refresh()}}));
+    P.body.append(el('div','lbl','Folder'));
+    const fb=el('button','sbtn','📁 '+esc(folderLabel(it.folder))+' ▾');fb.onclick=()=>pickFolder('Put "'+(it.name||'item')+'" in',null,fid=>{it.folder=fid;P.refresh()});P.body.append(fb);
     P.body.append(el('div','lbl','Details'));
     it.fields.forEach((f,i)=>{const r=el('div','row2');r.style.marginBottom='6px';
       const k=el('input','in');k.placeholder='Label';k.value=f.k||'';k.style.flex='0 0 34%';k.oninput=()=>f.k=k.value;
@@ -1583,6 +1681,7 @@ async function restoreZip(zf){
       for(const [id,p] of Object.entries(incoming.posts)){const mine=H.posts[id];if(!mine||(p.updated||0)>(mine.updated||0)){H.posts[id]=p;merged++}}
       for(const [id,it] of Object.entries(incoming.items||{}))if(!H.items[id])H.items[id]=it;
       (incoming.cats||[]).forEach(c=>{if(!H.cats.find(x=>x.id===c.id))H.cats.push(c)});
+      for(const [id,f] of Object.entries(incoming.folders||{}))if(!H.folders[id])H.folders[id]=f;
       saveHub(true);
     }
     vToast('Restored '+wrote+' file'+(wrote!==1?'s':'')+(skipped?', '+skipped+' already here':'')+(merged?', '+merged+' journal entries':'')+(bad?'\n'+bad+' compressed files skipped (use a backup made by this app)':''),5000);
